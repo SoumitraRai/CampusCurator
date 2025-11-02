@@ -13,16 +13,20 @@ async function fetchDrive(id) {
 export default function DriveDetail({ params }) {
   const id = params.id;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery(['drive', id], () => fetchDrive(id));
+  const { data, isLoading } = useQuery({
+    queryKey: ['drive', id],
+    queryFn: () => fetchDrive(id)
+  });
   const [name, setName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const router = useRouter();
 
-  const createGroupMutation = useMutation(async (payload) => {
-    const res = await api.post(`/groups`, { body: payload });
-    return res;
-  }, {
-    onSuccess: () => qc.invalidateQueries(['drive', id])
+  const createGroupMutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await api.post(`/groups`, { body: payload });
+      return res;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drive', id] })
   });
 
   const joinGroupMutation = useMutation(async (payload) => {

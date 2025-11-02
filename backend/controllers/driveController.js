@@ -7,21 +7,24 @@ exports.createDrive = async (req, res, next) => {
     const {
       participatingStudentEmails,
       mentorEmails,
+      participatingStudents, // Support frontend format
+      mentors, // Support frontend format
       ...driveData
     } = req.body;
 
     driveData.createdBy = req.user.id;
 
-    // Convert student emails to ObjectIds if provided
-    if (participatingStudentEmails && participatingStudentEmails.length > 0) {
+    // Handle student emails (support both formats)
+    const studentEmails = participatingStudentEmails || participatingStudents;
+    if (studentEmails && studentEmails.length > 0) {
       const students = await User.find({
-        email: { $in: participatingStudentEmails },
+        email: { $in: studentEmails },
         role: 'student'
       });
       
-      if (students.length !== participatingStudentEmails.length) {
+      if (students.length !== studentEmails.length) {
         const foundEmails = students.map(s => s.email);
-        const notFound = participatingStudentEmails.filter(email => !foundEmails.includes(email));
+        const notFound = studentEmails.filter(email => !foundEmails.includes(email));
         return res.status(400).json({
           success: false,
           message: `Students not found with emails: ${notFound.join(', ')}`
@@ -31,23 +34,24 @@ exports.createDrive = async (req, res, next) => {
       driveData.participatingStudents = students.map(s => s._id);
     }
 
-    // Convert mentor emails to ObjectIds if provided
-    if (mentorEmails && mentorEmails.length > 0) {
-      const mentors = await User.find({
-        email: { $in: mentorEmails },
+    // Handle mentor emails (support both formats)
+    const mentorEmailsList = mentorEmails || mentors;
+    if (mentorEmailsList && mentorEmailsList.length > 0) {
+      const mentorUsers = await User.find({
+        email: { $in: mentorEmailsList },
         role: 'mentor'
       });
       
-      if (mentors.length !== mentorEmails.length) {
-        const foundEmails = mentors.map(m => m.email);
-        const notFound = mentorEmails.filter(email => !foundEmails.includes(email));
+      if (mentorUsers.length !== mentorEmailsList.length) {
+        const foundEmails = mentorUsers.map(m => m.email);
+        const notFound = mentorEmailsList.filter(email => !foundEmails.includes(email));
         return res.status(400).json({
           success: false,
           message: `Mentors not found with emails: ${notFound.join(', ')}`
         });
       }
       
-      driveData.mentors = mentors.map(m => m._id);
+      driveData.mentors = mentorUsers.map(m => m._id);
     }
 
     const drive = await Drive.create(driveData);

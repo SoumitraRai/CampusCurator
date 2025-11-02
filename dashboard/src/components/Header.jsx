@@ -13,11 +13,11 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="border-b bg-white">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+    <header className="border-b bg-black h-[80px] text-2xl">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between ">
         <Link href="/" className="text-xl font-semibold">CampusCurator</Link>
         <nav className="flex items-center gap-3">
-          <Link href="/drives" className="text-sm">Drives</Link>
+          <Link href="/drives" className="">Drives</Link>
           {user?.role === 'admin' && <Link href="/admin/drives/new" className="text-sm">Create Drive</Link>}
           {user ? (
             <>
@@ -31,8 +31,8 @@ export default function Header() {
             </>
           ) : (
             <>
-              <Link href="/auth/login" className="text-sm">Login</Link>
-              <Link href="/auth/register" className="text-sm">Register</Link>
+              <Link href="/auth/login" className="">Login</Link>
+              <Link href="/auth/register" className="">Register</Link>
             </>
           )}
         </nav>

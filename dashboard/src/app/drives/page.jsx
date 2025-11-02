@@ -11,9 +11,13 @@ async function fetchDrives() {
 }
 
 export default function DrivesPage() {
-  const { data, isLoading, error, refetch } = useQuery(['drives'], fetchDrives, { staleTime: 1000 * 60 * 2 });
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['drives'],
+    queryFn: fetchDrives,
+    staleTime: 1000 * 60 * 2
+  });
 
-  useEffect(() => { refetch(); }, []);
+  useEffect(() => { refetch(); }, [refetch]);
 
   return (
     <div className="py-8 container mx-auto px-4">
