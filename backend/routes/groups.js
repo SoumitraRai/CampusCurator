@@ -1,0 +1,37 @@
+const express = require('express');
+const {
+  createGroup,
+  getGroups,
+  getGroup,
+  joinGroup,
+  manageMemberRequest,
+  removeMember,
+  deleteGroup,
+  allotMentor,
+  autoAllotMentors
+} = require('../controllers/groupController');
+const { protect, authorize } = require('../middleware/auth');
+const router = express.Router();
+router
+  .route('/')
+  .get(protect, getGroups)
+  .post(protect, authorize('student'), createGroup);
+router.post('/join', protect, authorize('student'), joinGroup);
+router.post(
+  '/auto-allot/:driveId',
+  protect,
+  authorize('admin'),
+  autoAllotMentors
+);
+router
+  .route('/:id')
+  .get(protect, getGroup)
+  .delete(protect, deleteGroup);
+router
+  .route('/:id/members/:memberId')
+  .put(protect, authorize('student'), manageMemberRequest)
+  .delete(protect, authorize('student'), removeMember);
+router
+  .route('/:id/mentor')
+  .put(protect, authorize('admin'), allotMentor);
+module.exports = router;
