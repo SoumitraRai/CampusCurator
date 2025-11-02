@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed": "cd .. && NODE_PATH=./backend/node_modules node database/seeder.js",
-    "seed:delete": "cd .. && NODE_PATH=./backend/node_modules node database/seeder.js -d",
+    "seed": "node seed-database.js",
+    "seed:delete": "node seed-database.js --delete-only",
+    "seed:old": "cd .. && NODE_PATH=./backend/node_modules node database/seeder.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

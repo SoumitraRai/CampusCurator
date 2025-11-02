@@ -1,6 +1,6 @@
-const Group = require('../../database/Group');
-const Drive = require('../../database/Drive');
-const User = require('../../database/User');
+const Group = require('../models/Group');
+const Drive = require('../models/Drive');
+const User = require('../models/User');
 const { v4: uuidv4 } = require('uuid');
 exports.createGroup = async (req, res, next) => {
   try {
