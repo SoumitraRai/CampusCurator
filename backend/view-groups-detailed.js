@@ -12,7 +12,7 @@ async function viewGroupsAndMentors() {
     const db = client.db('CampusCurator');
     
     console.log('\n' + '='.repeat(100));
-    console.log('📋 GROUP FORMATION & MENTOR ALLOTMENT VISUALIZATION');
+    console.log('GROUP FORMATION & MENTOR ALLOTMENT VISUALIZATION');
     console.log('='.repeat(100));
     
     // Get all groups sorted by creation time
@@ -28,15 +28,15 @@ async function viewGroupsAndMentors() {
       userMap[u._id.toString()] = { name: u.name, email: u.email, role: u.role };
     });
     
-    console.log(`\n✅ Found ${groups.length} groups\n`);
+    console.log(`\n Found ${groups.length} groups\n`);
     
     groups.forEach((group, idx) => {
       console.log(`\n${'─'.repeat(100)}`);
-      console.log(`🎯 GROUP ${idx + 1}: ${group.name}`);
+      console.log(`GROUP ${idx + 1}: ${group.name}`);
       console.log(`${'─'.repeat(100)}`);
       
       const createdDate = new Date(group.createdAt).toLocaleString();
-      console.log(`   📅 Created: ${createdDate}`);
+      console.log(`   Created: ${createdDate}`);
       console.log(`   Status: ${group.status}`);
       
       console.log(`\n   👥 Members (${group.members?.length || 0}):`);
@@ -49,7 +49,7 @@ async function viewGroupsAndMentors() {
         });
       }
       
-      console.log(`\n   🎓 Mentor Preferences (in FIFO priority order):`);
+      console.log(`\n   Mentor Preferences (in FIFO priority order)`);
       if (group.mentorPreferences && group.mentorPreferences.length > 0) {
         group.mentorPreferences
           .sort((a, b) => a.rank - b.rank)
@@ -57,9 +57,9 @@ async function viewGroupsAndMentors() {
             const mentor = userMap[pref.mentor.toString()];
             const isAssigned = group.assignedMentor && 
                               group.assignedMentor.toString() === pref.mentor.toString();
-            const marker = isAssigned ? '✅ ASSIGNED' : '⭕ Not assigned';
+            const marker = isAssigned ? '[ASSIGNED]' : '[WAITING]';
             if (mentor) {
-              console.log(`      ${marker} → Rank ${pref.rank}: ${mentor.name} (${mentor.email})`);
+              console.log(`      ${marker} -> Rank ${pref.rank}: ${mentor.name} (${mentor.email})`);
             }
           });
       }
@@ -67,10 +67,10 @@ async function viewGroupsAndMentors() {
       if (group.assignedMentor) {
         const mentor = userMap[group.assignedMentor.toString()];
         if (mentor) {
-          console.log(`\n   ✅ FINAL ASSIGNMENT: ${mentor.name} (${mentor.email})`);
+          console.log(`\n   FINAL ASSIGNMENT: ${mentor.name} (${mentor.email})`);
         }
       } else {
-        console.log(`\n   ⏳ AWAITING MENTOR ASSIGNMENT`);
+        console.log(`\n   AWAITING MENTOR ASSIGNMENT`);
       }
     });
     
@@ -100,7 +100,7 @@ async function viewGroupsAndMentors() {
     });
     
     console.log(`\n\n${'='.repeat(100)}`);
-    console.log('🔍 HOW FIFO MENTOR ALLOTMENT WORKS');
+    console.log('HOW FIFO MENTOR ALLOTMENT WORKS');
     console.log(`${'='.repeat(100)}`);
     console.log(`
 1. GROUPS ARE SORTED BY CREATION TIME (createdAt)
@@ -112,20 +112,20 @@ async function viewGroupsAndMentors() {
    • If still full → Check 3rd preference
    ↓
 3. RESULT: FAIR ALLOCATION
-   ✓ Earlier groups get priority over later groups
-   ✓ Preferences honored when possible
-   ✓ No mentor exceeds capacity limit
+   Earlier groups get priority over later groups
+   Preferences honored when possible
+   No mentor exceeds capacity limit
 
 EXAMPLE FROM THIS RUN:
-   Group created at 08:00 → 1st pref available → ✅ ASSIGNED
-   Group created at 08:15 → 1st pref available → ✅ ASSIGNED
-   Group created at 08:30 → 1st pref available → ✅ ASSIGNED
+   Group created at 08:00 -> 1st pref available -> [ASSIGNED]
+   Group created at 08:15 -> 1st pref available -> [ASSIGNED]
+   Group created at 08:30 -> 1st pref available -> [ASSIGNED]
 `);
     console.log('='.repeat(100) + '\n');
     
     await client.close();
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('Error:', err.message);
     process.exit(1);
   }
 }
