@@ -15,16 +15,6 @@ const upload = require('../middleware/upload');
 
 const router = express.Router();
 
-router
-  .route('/')
-  .get(protect, getDrives)
-  .post(protect, authorize('admin'), createDrive);
-
-// Upload participants (students/mentors) via CSV/Excel
-router
-  .route('/:id/upload-participants')
-  .post(protect, authorize('admin'), upload.single('file'), uploadParticipants);
-
 // Stats and progress routes MUST come before /:id route to avoid conflicts
 router
   .route('/:id/stats')
@@ -37,6 +27,16 @@ router
 router
   .route('/:id/progress-stage')
   .post(protect, authorize('admin'), progressStage);
+
+// Upload participants (students/mentors) via CSV/Excel
+router
+  .route('/:id/upload-participants')
+  .post(protect, authorize('admin'), upload.single('file'), uploadParticipants);
+
+router
+  .route('/')
+  .get(protect, getDrives)
+  .post(protect, authorize('admin'), createDrive);
 
 // Dynamic /:id route comes LAST
 router
