@@ -19,6 +19,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/drives', require('./routes/drives'));
 app.use('/api/groups', require('./routes/groups'));
 app.use('/api/synopsis', require('./routes/synopsis'));
+app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/checkpoints', require('./routes/checkpoints'));
 app.use('/api/evaluations', require('./routes/evaluations'));
 app.use('/api/results', require('./routes/results'));

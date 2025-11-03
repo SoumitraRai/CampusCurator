@@ -12,8 +12,8 @@ exports.createGroup = async (req, res, next) => {
         message: 'Drive is not active or does not exist'
       });
     }
+    // Check if student already in ANY group (across all drives)
     const existingGroup = await Group.findOne({
-      drive,
       $or: [
         { leader: req.user.id },
         { 'members.student': req.user.id }
@@ -22,7 +22,7 @@ exports.createGroup = async (req, res, next) => {
     if (existingGroup) {
       return res.status(400).json({
         success: false,
-        message: 'You are already part of a group in this drive'
+        message: 'You are already part of another drive. Students can only join one drive.'
       });
     }
     const invitationCode = uuidv4().substring(0, 8).toUpperCase();
@@ -108,6 +108,19 @@ exports.joinGroup = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'Group is locked and cannot accept new members'
+      });
+    }
+    // Check if student already in ANY group (across all drives)
+    const existingGroup = await Group.findOne({
+      $or: [
+        { leader: req.user.id },
+        { 'members.student': req.user.id }
+      ]
+    });
+    if (existingGroup) {
+      return res.status(400).json({
+        success: false,
+        message: 'You are already part of another drive. Students can only join one drive.'
       });
     }
     const isMember = group.members.some(
@@ -297,10 +310,16 @@ exports.autoAllotMentors = async (req, res, next) => {
         message: 'Drive not found'
       });
     }
+
+    // Fetch all groups without assigned mentors, sorted by createdAt (timestamp-based)
     const groups = await Group.find({
       drive: req.params.driveId,
       assignedMentor: { $exists: false }
-    }).populate('mentorPreferences.mentor');
+    })
+      .populate('mentorPreferences.mentor')
+      .sort({ createdAt: 1 }); // Sort by earliest first (timestamp-based fair allotment)
+
+    // Initialize mentor capacity tracking
     const mentorCapacity = {};
     for (const mentor of drive.mentors) {
       const currentGroups = await Group.countDocuments({
@@ -309,43 +328,222 @@ exports.autoAllotMentors = async (req, res, next) => {
       });
       mentorCapacity[mentor.toString()] = drive.maxGroupsPerMentor - currentGroups;
     }
+
+    let allottedCount = 0;
+    const failedGroups = [];
+
+    // Process groups in timestamp order (earliest first)
     for (const group of groups) {
       let allotted = false;
+
+      // Check mentor preferences in order (1st, 2nd, 3rd choice)
       if (group.mentorPreferences && group.mentorPreferences.length > 0) {
         const sortedPrefs = group.mentorPreferences.sort((a, b) => a.rank - b.rank);
+        
         for (const pref of sortedPrefs) {
           const mentorId = pref.mentor._id.toString();
+          
+          // Check if mentor has capacity
           if (mentorCapacity[mentorId] > 0) {
-            group.assignedMentor = mentorId;
-            group.mentorAllottedAt = Date.now();
+            group.assignedMentor = pref.mentor._id;
+            group.mentorAllottedAt = new Date();
             group.mentorAllottedBy = req.user.id;
             group.status = 'mentor-assigned';
             mentorCapacity[mentorId]--;
+            allottedCount++;
             allotted = true;
             await group.save();
             break;
           }
         }
       }
+
+      // If no preferred mentor available, assign to any mentor with capacity
       if (!allotted) {
         for (const [mentorId, capacity] of Object.entries(mentorCapacity)) {
           if (capacity > 0) {
             group.assignedMentor = mentorId;
-            group.mentorAllottedAt = Date.now();
+            group.mentorAllottedAt = new Date();
             group.mentorAllottedBy = req.user.id;
             group.status = 'mentor-assigned';
             mentorCapacity[mentorId]--;
+            allottedCount++;
+            allotted = true;
             await group.save();
             break;
           }
         }
       }
+
+      // Track failed allocations for admin manual assignment
+      if (!allotted) {
+        failedGroups.push({
+          groupId: group._id,
+          groupName: group.name,
+          preferences: group.mentorPreferences.map(p => p.mentor.name)
+        });
+      }
     }
+
     res.status(200).json({
       success: true,
-      message: 'Mentors auto-allotted successfully'
+      message: `${allottedCount} groups allotted mentors successfully (timestamp-based, first-come-first-served)`,
+      allottedCount,
+      failedGroups,
+      failedCount: failedGroups.length
     });
   } catch (error) {
     next(error);
   }
 };
+
+/**
+ * Auto-group remaining students
+ * Finds all students not in any group and groups them automatically
+ */
+exports.autoGroupRemainingStudents = async (req, res, next) => {
+  try {
+    const { driveId } = req.params;
+    
+    const drive = await Drive.findById(driveId).populate('participatingStudents');
+    if (!drive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Drive not found'
+      });
+    }
+
+    // Find all students already in groups
+    const studentsInGroups = await Group.aggregate([
+      { $match: { drive: drive._id } },
+      { $unwind: '$members' },
+      { $group: { _id: null, students: { $push: '$members.student' } } }
+    ]);
+
+    const groupedStudentIds = new Set();
+    if (studentsInGroups.length > 0) {
+      studentsInGroups[0].students.forEach(id => {
+        groupedStudentIds.add(id.toString());
+      });
+    }
+
+    // Also add group leaders
+    const groupLeaders = await Group.find({ drive: driveId }, { leader: 1 });
+    groupLeaders.forEach(group => {
+      groupedStudentIds.add(group.leader.toString());
+    });
+
+    // Find remaining students
+    const remainingStudents = drive.participatingStudents.filter(
+      student => !groupedStudentIds.has(student._id.toString())
+    );
+
+    if (remainingStudents.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'All students are already grouped',
+        groupsCreated: 0,
+        remainingStudents: []
+      });
+    }
+
+    // Create groups with remaining students
+    const groupsCreated = [];
+    const groupSize = drive.maxGroupSize;
+    let currentGroupStudents = [];
+
+    for (let i = 0; i < remainingStudents.length; i++) {
+      currentGroupStudents.push(remainingStudents[i]._id);
+
+      // Create group when full or at end of list
+      if (currentGroupStudents.length === groupSize || i === remainingStudents.length - 1) {
+        const invitationCode = uuidv4().substring(0, 8).toUpperCase();
+        
+        const newGroup = await Group.create({
+          name: `Auto-Group-${Date.now()}`,
+          drive: driveId,
+          leader: currentGroupStudents[0],
+          maxMembers: groupSize,
+          invitationCode,
+          members: currentGroupStudents.slice(1).map(studentId => ({
+            student: studentId,
+            status: 'accepted'
+          })),
+          status: 'formed',
+          mentorPreferences: [] // Will need manual assignment or later preference entry
+        });
+
+        await newGroup.populate('leader', 'name email batch');
+        await newGroup.populate('members.student', 'name email batch');
+
+        groupsCreated.push({
+          groupId: newGroup._id,
+          groupName: newGroup.name,
+          memberCount: currentGroupStudents.length
+        });
+
+        currentGroupStudents = [];
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `${groupsCreated.length} auto-groups created for remaining students`,
+      groupsCreated,
+      totalStudentsGrouped: remainingStudents.length
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get remaining (ungrouped) students for a drive
+ */
+exports.getRemainingStudents = async (req, res, next) => {
+  try {
+    const { driveId } = req.params;
+    
+    const drive = await Drive.findById(driveId).populate('participatingStudents', 'name email batch registrationNumber');
+    if (!drive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Drive not found'
+      });
+    }
+
+    // Find all students already in groups
+    const studentsInGroups = await Group.aggregate([
+      { $match: { drive: drive._id } },
+      { $unwind: '$members' },
+      { $group: { _id: null, students: { $push: '$members.student' } } }
+    ]);
+
+    const groupedStudentIds = new Set();
+    if (studentsInGroups.length > 0) {
+      studentsInGroups[0].students.forEach(id => {
+        groupedStudentIds.add(id.toString());
+      });
+    }
+
+    // Also add group leaders
+    const groupLeaders = await Group.find({ drive: driveId }, { leader: 1 });
+    groupLeaders.forEach(group => {
+      groupedStudentIds.add(group.leader.toString());
+    });
+
+    // Get remaining students
+    const remainingStudents = drive.participatingStudents.filter(
+      student => !groupedStudentIds.has(student._id.toString())
+    );
+
+    res.status(200).json({
+      success: true,
+      count: remainingStudents.length,
+      data: remainingStudents
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

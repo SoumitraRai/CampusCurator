@@ -6,8 +6,9 @@ const {
   updateDrive,
   deleteDrive,
   getDriveStats,
-  updateDriveStage,
-  uploadParticipants
+  uploadParticipants,
+  getDriveProgress,
+  progressStage
 } = require('../controllers/driveController');
 const { protect, authorize } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -24,15 +25,24 @@ router
   .route('/:id/upload-participants')
   .post(protect, authorize('admin'), upload.single('file'), uploadParticipants);
 
+// Stats and progress routes MUST come before /:id route to avoid conflicts
+router
+  .route('/:id/stats')
+  .get(protect, authorize('admin', 'mentor'), getDriveStats);
+
+router
+  .route('/:id/progress')
+  .get(protect, authorize('admin', 'mentor'), getDriveProgress);
+
+router
+  .route('/:id/progress-stage')
+  .post(protect, authorize('admin'), progressStage);
+
+// Dynamic /:id route comes LAST
 router
   .route('/:id')
   .get(protect, getDrive)
   .put(protect, authorize('admin'), updateDrive)
   .delete(protect, authorize('admin'), deleteDrive);
-router
-  .route('/:id/stats')
-  .get(protect, authorize('admin', 'mentor'), getDriveStats);
-router
-  .route('/:id/stage')
-  .put(protect, authorize('admin'), updateDriveStage);
+
 module.exports = router;

@@ -11,6 +11,37 @@ const resultSchema = new mongoose.Schema({
     ref: 'Drive',
     required: true
   },
+  // Individual component marks
+  logbookMarks: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  synopsisMarks: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  reportMarks: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  pptMarks: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  midsemMarks: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  endsemMarks: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   checkpointScores: [{
     checkpointIndex: Number,
     checkpointName: String,
@@ -24,11 +55,15 @@ const resultSchema = new mongoose.Schema({
   }],
   totalMarks: {
     type: Number,
-    required: true
+    default: 0
   },
   totalMaxMarks: {
     type: Number,
-    required: true
+    default: 100
+  },
+  finalMarks: {
+    type: Number,
+    default: 0
   },
   averagePercentage: {
     type: Number
@@ -64,6 +99,19 @@ const resultSchema = new mongoose.Schema({
   timestamps: true
 });
 resultSchema.pre('save', function(next) {
+  // Calculate final marks from individual components
+  // finalMarks = logbook + synopsis + report + ppt + midsem + endsem
+  this.finalMarks = (this.logbookMarks || 0) + 
+                    (this.synopsisMarks || 0) + 
+                    (this.reportMarks || 0) + 
+                    (this.pptMarks || 0) + 
+                    (this.midsemMarks || 0) + 
+                    (this.endsemMarks || 0);
+  
+  // Update totalMarks for consistency
+  this.totalMarks = this.finalMarks;
+  
+  // Calculate percentage and grade
   if (this.totalMarks && this.totalMaxMarks) {
     this.averagePercentage = (this.totalMarks / this.totalMaxMarks) * 100;
     if (this.averagePercentage >= 90) this.finalGrade = 'A+';

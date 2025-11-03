@@ -8,7 +8,9 @@ const {
   removeMember,
   deleteGroup,
   allotMentor,
-  autoAllotMentors
+  autoAllotMentors,
+  autoGroupRemainingStudents,
+  getRemainingStudents
 } = require('../controllers/groupController');
 const { protect, authorize } = require('../middleware/auth');
 const router = express.Router();
@@ -22,6 +24,18 @@ router.post(
   protect,
   authorize('admin'),
   autoAllotMentors
+);
+router.post(
+  '/auto-group/:driveId',
+  protect,
+  authorize('admin'),
+  autoGroupRemainingStudents
+);
+router.get(
+  '/remaining/:driveId',
+  protect,
+  authorize('admin', 'mentor'),
+  getRemainingStudents
 );
 router
   .route('/:id')

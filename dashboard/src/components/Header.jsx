@@ -1,41 +1,108 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { getCurrentUser, logout } from '@/lib/auth';
+import { useCurrentUser } from '@/lib/useCurrentUser';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Header() {
-  const [user, setUser] = useState(null);
+  const { data: user } = useCurrentUser();
+  const [showMenu, setShowMenu] = useState(false);
+  const router = useRouter();
 
-  useEffect(() => {
-    let mounted = true;
-    getCurrentUser().then(u => mounted && setUser(u)).catch(() => {});
-    return () => (mounted = false);
-  }, []);
+  const handleLogout = () => {
+    localStorage.removeItem('cc_token');
+    router.push('/auth/login');
+  };
 
   return (
-    <header className="border-b bg-black h-[80px] text-2xl">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between ">
-        <Link href="/" className="text-xl font-semibold">CampusCurator</Link>
-        <nav className="flex items-center gap-3">
-          <Link href="/drives" className="">Drives</Link>
-          {user?.role === 'admin' && <Link href="/admin/drives/new" className="text-sm">Create Drive</Link>}
-          {user ? (
-            <>
-              <span className="text-sm">Hi, {user.name}</span>
-              <button
-                onClick={() => { logout().then(() => location.href = '/'); }}
-                className="text-sm text-red-600"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/auth/login" className="">Login</Link>
-              <Link href="/auth/register" className="">Register</Link>
-            </>
+    <header className="bg-slate-800 text-white border-b border-slate-700">
+      <div className="w-full px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition">
+            <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center font-bold text-sm">
+              CC
+            </div>
+            <span className="font-bold text-lg">CampusCurator</span>
+          </Link>
+
+          {/* Navigation */}
+          {user && (
+            <nav className="hidden md:flex items-center gap-8 text-sm">
+              {user.role === 'admin' && (
+                <>
+                  <Link href="/admin/dashboard" className="text-gray-300 hover:text-orange-400 transition font-medium">
+                    Dashboard
+                  </Link>
+                  <Link href="/admin/drives/new" className="text-gray-300 hover:text-orange-400 transition font-medium">
+                    New Drive
+                  </Link>
+                </>
+              )}
+              {user.role === 'mentor' && (
+                <>
+                  <Link href="/mentor/dashboard" className="text-gray-300 hover:text-orange-400 transition font-medium">
+                    My Groups
+                  </Link>
+                  <Link href="/mentor/reviews" className="text-gray-300 hover:text-orange-400 transition font-medium">
+                    Reviews
+                  </Link>
+                  <Link href="/mentor/evaluations" className="text-gray-300 hover:text-orange-400 transition font-medium">
+                    Evaluations
+                  </Link>
+                </>
+              )}
+              {user.role === 'student' && (
+                <>
+                  <Link href="/drives" className="text-gray-300 hover:text-orange-400 transition font-medium">
+                    Dashboard
+                  </Link>
+                  <Link href="/students/submit" className="text-gray-300 hover:text-orange-400 transition font-medium">
+                    Submit
+                  </Link>
+                  <Link href="/students/results" className="text-gray-300 hover:text-orange-400 transition font-medium">
+                    Results
+                  </Link>
+                </>
+              )}
+            </nav>
           )}
-        </nav>
+
+          {/* User Menu */}
+          <div className="relative">
+            {user ? (
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-700 rounded-lg transition"
+              >
+                <span className="text-white font-medium">{user.name}</span>
+                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-xs font-bold">
+                  {user.name?.charAt(0).toUpperCase()}
+                </div>
+              </button>
+            ) : (
+              <Link href="/auth/login" className="px-6 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition font-medium">
+                Sign In
+              </Link>
+            )}
+
+            {/* Dropdown Menu */}
+            {showMenu && user && (
+              <div className="absolute right-0 mt-2 w-48 bg-white text-gray-900 rounded-lg shadow-xl border border-gray-200 z-50">
+                <div className="px-4 py-3 border-b border-gray-200">
+                  <p className="font-medium">{user.name}</p>
+                  <p className="text-xs text-gray-600 mt-1">{user.email}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 text-sm transition"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </header>
   );

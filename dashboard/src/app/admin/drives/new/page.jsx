@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { Card, CardHeader, CardBody, Button, Alert } from '@/components/UI';
+import ProtectedRole from '@/components/ProtectedRole';
 
 export default function NewDrivePage() {
   const [form, setForm] = useState({
@@ -80,158 +82,216 @@ export default function NewDrivePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 text-white">
-      <h1 className="text-3xl font-bold mb-6">Create New Drive (Stage 1)</h1>
-      <form onSubmit={onSubmit} className="space-y-6">
-        
-        {/* Basic Information */}
-        <div className="bg-black p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
-          <div className="space-y-4">
-            <input 
-              value={form.name} 
-              onChange={e=>setForm({...form, name:e.target.value})} 
-              placeholder="Drive name (e.g., Mini Project Drive 2025)" 
-              className="w-full border p-3 rounded-lg" 
-              required 
-            />
-            <input 
-              value={form.academicYear} 
-              onChange={e=>setForm({...form, academicYear:e.target.value})} 
-              placeholder="Academic Year (e.g., 2024-2025)" 
-              className="w-full border p-3 rounded-lg" 
-              required 
-            />
-            <input 
-              value={form.participatingBatches} 
-              onChange={e=>setForm({...form, participatingBatches:e.target.value})} 
-              placeholder="Participating batches (comma-separated, e.g., 2025)" 
-              className="w-full border p-3 rounded-lg" 
-              required 
-            />
-            <textarea 
-              value={form.description} 
-              onChange={e=>setForm({...form, description:e.target.value})} 
-              placeholder="Description" 
-              className="w-full border p-3 rounded-lg h-24" 
-              required 
-            />
+    <ProtectedRole allowedRole="admin">
+      <div className="w-full bg-gray-50 min-h-screen">
+        <div className="w-full px-6 py-8">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Create New Drive</h1>
+            <p className="text-gray-600 mb-8">Set up a new project drive with participants and configuration</p>
+
+            {err && (
+              <Alert variant="danger" className="mb-6">
+                {err}
+              </Alert>
+            )}
+
+            <form onSubmit={onSubmit} className="space-y-6">
+              
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <h2 className="text-xl font-bold text-gray-900">Basic Information</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="drive-name" className="block text-sm font-semibold text-gray-900 mb-2">
+                        Drive Name *
+                      </label>
+                      <input 
+                        id="drive-name"
+                        value={form.name} 
+                        onChange={e=>setForm({...form, name:e.target.value})} 
+                        placeholder="e.g., Mini Project Drive 2025" 
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" 
+                        required 
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="academic-year" className="block text-sm font-semibold text-gray-900 mb-2">
+                        Academic Year *
+                      </label>
+                      <input 
+                        id="academic-year"
+                        value={form.academicYear} 
+                        onChange={e=>setForm({...form, academicYear:e.target.value})} 
+                        placeholder="e.g., 2024-2025" 
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" 
+                        required 
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="batches" className="block text-sm font-semibold text-gray-900 mb-2">
+                        Participating Batches *
+                      </label>
+                      <input 
+                        id="batches"
+                        value={form.participatingBatches} 
+                        onChange={e=>setForm({...form, participatingBatches:e.target.value})} 
+                        placeholder="Comma-separated, e.g., 2025, 2026" 
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" 
+                        required 
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="description" className="block text-sm font-semibold text-gray-900 mb-2">
+                        Description *
+                      </label>
+                      <textarea 
+                        id="description"
+                        value={form.description} 
+                        onChange={e=>setForm({...form, description:e.target.value})} 
+                        placeholder="Describe the drive objectives and expectations" 
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none resize-none h-24" 
+                        required 
+                      />
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+
+              {/* Configuration */}
+              <Card>
+                <CardHeader>
+                  <h2 className="text-xl font-bold text-gray-900">Configuration</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="max-size" className="block text-sm font-semibold text-gray-900 mb-2">Max Group Size</label>
+                      <input 
+                        id="max-size"
+                        type="number" 
+                        value={form.maxGroupSize} 
+                        onChange={e=>setForm({...form, maxGroupSize:e.target.value})} 
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" 
+                        min="1" 
+                        required 
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="min-size" className="block text-sm font-semibold text-gray-900 mb-2">Min Group Size</label>
+                      <input 
+                        id="min-size"
+                        type="number" 
+                        value={form.minGroupSize} 
+                        onChange={e=>setForm({...form, minGroupSize:e.target.value})} 
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" 
+                        min="1" 
+                        required 
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="max-groups" className="block text-sm font-semibold text-gray-900 mb-2">Max Groups Per Mentor</label>
+                      <input 
+                        id="max-groups"
+                        type="number" 
+                        value={form.maxGroupsPerMentor} 
+                        onChange={e=>setForm({...form, maxGroupsPerMentor:e.target.value})} 
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" 
+                        min="1" 
+                        required 
+                      />
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+
+              {/* Participating Students */}
+              <Card>
+                <CardHeader>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Participating Students 
+                    <span className="text-sm font-normal text-gray-600 ml-2">
+                      ({form.participatingStudents.length} selected)
+                    </span>
+                  </h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+                    {availableStudents.map(student => (
+                      <label key={student._id} className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 cursor-pointer transition">
+                        <input
+                          type="checkbox"
+                          checked={form.participatingStudents.includes(student.email)}
+                          onChange={() => toggleStudent(student.email)}
+                          className="w-4 h-4 text-orange-600"
+                        />
+                        <div>
+                          <div className="font-semibold text-gray-900">{student.name}</div>
+                          <div className="text-sm text-gray-600">{student.email}</div>
+                          <div className="text-xs text-gray-500">{student.registrationNumber}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </CardBody>
+              </Card>
+
+              {/* Mentors */}
+              <Card>
+                <CardHeader>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Mentors 
+                    <span className="text-sm font-normal text-gray-600 ml-2">
+                      ({form.mentors.length} selected)
+                    </span>
+                  </h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {availableMentors.map(mentor => (
+                      <label key={mentor._id} className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 cursor-pointer transition">
+                        <input
+                          type="checkbox"
+                          checked={form.mentors.includes(mentor.email)}
+                          onChange={() => toggleMentor(mentor.email)}
+                          className="w-4 h-4 text-orange-600"
+                        />
+                        <div>
+                          <div className="font-semibold text-gray-900">{mentor.name}</div>
+                          <div className="text-sm text-gray-600">{mentor.email}</div>
+                          <div className="text-xs text-gray-500">{mentor.department}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </CardBody>
+              </Card>
+              
+              <div className="flex justify-end space-x-4">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant="primary"
+                  disabled={form.participatingStudents.length === 0 || form.mentors.length === 0}
+                >
+                  Create Drive
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
-
-        {/* Configuration */}
-        <div className="bg-black p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Configuration</h2>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Max Group Size</label>
-              <input 
-                type="number" 
-                value={form.maxGroupSize} 
-                onChange={e=>setForm({...form, maxGroupSize:e.target.value})} 
-                className="w-full border p-3 rounded-lg" 
-                min="1" 
-                required 
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Min Group Size</label>
-              <input 
-                type="number" 
-                value={form.minGroupSize} 
-                onChange={e=>setForm({...form, minGroupSize:e.target.value})} 
-                className="w-full border p-3 rounded-lg" 
-                min="1" 
-                required 
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Max Groups Per Mentor</label>
-              <input 
-                type="number" 
-                value={form.maxGroupsPerMentor} 
-                onChange={e=>setForm({...form, maxGroupsPerMentor:e.target.value})} 
-                className="w-full border p-3 rounded-lg" 
-                min="1" 
-                required 
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Participating Students */}
-        <div className="bg-black p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">
-            Participating Students 
-            <span className="text-sm font-normal text-gray-600">
-              ({form.participatingStudents.length} selected)
-            </span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
-            {availableStudents.map(student => (
-              <label key={student._id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.participatingStudents.includes(student.email)}
-                  onChange={() => toggleStudent(student.email)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <div>
-                  <div className="font-medium">{student.name}</div>
-                  <div className="text-sm text-gray-500">{student.email}</div>
-                  <div className="text-xs text-gray-400">{student.registrationNumber}</div>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Mentors */}
-        <div className="bg-black p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">
-            Mentors 
-            <span className="text-sm font-normal text-gray-600">
-              ({form.mentors.length} selected)
-            </span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {availableMentors.map(mentor => (
-              <label key={mentor._id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.mentors.includes(mentor.email)}
-                  onChange={() => toggleMentor(mentor.email)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <div>
-                  <div className="font-medium">{mentor.name}</div>
-                  <div className="text-sm text-gray-500">{mentor.email}</div>
-                  <div className="text-xs text-gray-400">{mentor.department}</div>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {err && <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">{err}</div>}
-        
-        <div className="flex justify-end space-x-4">
-          <button 
-            type="button" 
-            onClick={() => router.back()} 
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit" 
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
-            disabled={form.participatingStudents.length === 0 || form.mentors.length === 0}
-          >
-            Create Drive
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+    </ProtectedRole>
   );
 }

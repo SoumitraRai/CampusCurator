@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { Card, CardHeader, CardBody, Badge, LoadingSpinner, EmptyState } from '@/components/UI';
 
 async function fetchDrives() {
   const res = await api.get('/drives');
-  // backend getDrives likely returns { success, data } or similar; handle both
   return res.data || res.drives || res;
 }
 
@@ -20,19 +20,57 @@ export default function DrivesPage() {
   useEffect(() => { refetch(); }, [refetch]);
 
   return (
-    <div className="py-8 container mx-auto px-4">
-      <h1 className="text-2xl font-semibold mb-4">Active Drives</h1>
-      {isLoading && <div>Loading drives...</div>}
-      {error && <div className="text-red-600">Error loading drives</div>}
-      <div className="grid gap-4">
-        {data && data.length === 0 && <div>No drives found.</div>}
-        {data && data.map(d => (
-          <div key={d._id} className="border p-4 rounded">
-            <h2 className="text-lg font-medium"><Link href={`/drives/${d._id}`}>{d.name}</Link></h2>
-            <p className="text-sm text-gray-600">{d.description}</p>
-            <div className="mt-2 text-xs text-gray-500">Status: {d.status} — Current stage: {d.currentStage}</div>
-          </div>
-        ))}
+    <div className="w-full bg-gray-50 min-h-screen">
+      <div className="w-full px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Project Drives</h1>
+          <p className="text-gray-700 mb-8">Browse and explore all available project drives</p>
+
+          {isLoading && <LoadingSpinner />}
+          
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+              <p className="text-red-700 font-medium">Error loading drives</p>
+            </div>
+          )}
+
+          {data && data.length === 0 && (
+            <EmptyState 
+              title="No Drives Found" 
+              message="Check back soon for new project drives"
+            />
+          )}
+
+          {data && data.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {data.map(d => (
+                <Link key={d._id} href={`/drives/${d._id}`}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+                    <CardBody>
+                      <div className="flex items-start justify-between mb-3">
+                        <h2 className="text-xl font-bold text-gray-900">{d.name}</h2>
+                        <Badge variant={d.status === 'active' ? 'success' : 'warning'}>
+                          {d.status}
+                        </Badge>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-4">{d.description}</p>
+                      <div className="flex gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">Stage:</span>
+                          <p className="font-semibold text-gray-900">{d.currentStage?.replace('-', ' ').toUpperCase()}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Year:</span>
+                          <p className="font-semibold text-gray-900">{d.academicYear}</p>
+                        </div>
+                      </div>
+                    </CardBody>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

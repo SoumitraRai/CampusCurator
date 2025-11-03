@@ -307,3 +307,266 @@ exports.uploadParticipants = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Check if a stage can progress to the next stage
+ * Returns true/false based on stage completion conditions
+ */
+const canProgressStage = async (drive, currentStage) => {
+  try {
+    const Group = require('../models/Group');
+    const Synopsis = require('../models/Synopsis');
+    const Submission = require('../models/Submission');
+    const Evaluation = require('../models/Evaluation');
+    const Result = require('../models/Result');
+
+    switch (currentStage) {
+      case 'group-formation':
+        // All students must be in a group
+        const totalStudents = drive.participatingStudents.length;
+        const groupedStudents = await Group.aggregate([
+          { $match: { drive: drive._id } },
+          { $group: { _id: null, count: { $sum: { $size: '$members' } } } },
+          { $project: { count: { $add: ['$count', totalStudents] } } }
+        ]);
+        return groupedStudents.length > 0 && groupedStudents[0].count >= totalStudents;
+
+      case 'mentor-allotment':
+        // All groups must have mentors assigned
+        const unallottedGroups = await Group.countDocuments({
+          drive: drive._id,
+          assignedMentor: { $exists: false }
+        });
+        return unallottedGroups === 0;
+
+      case 'synopsis':
+        // All synopses must be approved
+        const totalGroups = await Group.countDocuments({ drive: drive._id });
+        const approvedSynopsis = await Synopsis.countDocuments({
+          drive: drive._id,
+          status: 'approved'
+        });
+        return approvedSynopsis === totalGroups;
+
+      case 'checkpoints':
+        // All required submissions must be received
+        return true; // Manual trigger
+
+      case 'result':
+        // All evaluations must be completed
+        return true; // Manual trigger
+
+      default:
+        return false;
+    }
+  } catch (error) {
+    console.error('Error in canProgressStage:', error);
+    return false;
+  }
+};
+
+/**
+ * Get drive stage progress and status
+ */
+exports.getDriveProgress = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    const drive = await Drive.findById(id);
+    if (!drive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Drive not found'
+      });
+    }
+
+    const Group = require('../models/Group');
+    const Synopsis = require('../models/Synopsis');
+    const Submission = require('../models/Submission');
+    const Evaluation = require('../models/Evaluation');
+    const Result = require('../models/Result');
+
+    // Get statistics for each stage
+    const totalGroups = await Group.countDocuments({ drive: driveId });
+    const groupsWithMentors = await Group.countDocuments({
+      drive: driveId,
+      assignedMentor: { $exists: true }
+    });
+
+    const synopsisStats = await Synopsis.aggregate([
+      { $match: { drive: drive._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const submissionStats = await Submission.aggregate([
+      { $match: { drive: drive._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const evaluationStats = await Evaluation.aggregate([
+      { $match: { drive: drive._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const resultsPublished = await Result.countDocuments({
+      drive: driveId,
+      isPublished: true
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        currentStage: drive.currentStage,
+        stages: drive.stages,
+        progress: {
+          groupFormation: {
+            total: totalGroups,
+            completed: totalGroups
+          },
+          mentorAllotment: {
+            total: totalGroups,
+            completed: groupsWithMentors
+          },
+          synopsis: synopsisStats,
+          submissions: submissionStats,
+          evaluations: evaluationStats,
+          results: {
+            published: resultsPublished,
+            total: totalGroups
+          }
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Manually progress drive to next stage
+ */
+exports.progressStage = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    const drive = await Drive.findById(id);
+    if (!drive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Drive not found'
+      });
+    }
+
+    // Define stage progression
+    const stageProgression = {
+      'group-formation': 'mentor-allotment',
+      'mentor-allotment': 'synopsis',
+      'synopsis': 'checkpoints',
+      'checkpoints': 'result',
+      'result': 'completed'
+    };
+
+    const currentStage = drive.currentStage;
+    const nextStage = stageProgression[currentStage];
+
+    if (!nextStage) {
+      return res.status(400).json({
+        success: false,
+        message: 'Drive is already completed or cannot progress further'
+      });
+    }
+
+    // Check if progression is allowed
+    const canProgress = await canProgressStage(drive, currentStage);
+    if (!canProgress && req.body.force !== true) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot progress to ${nextStage}. Not all conditions met for current stage.`,
+        currentStage,
+        action: 'Use force: true in request body to override'
+      });
+    }
+
+    // Update current stage
+    drive.currentStage = nextStage;
+
+    // Update stage status
+    if (drive.stages[currentStage]) {
+      drive.stages[currentStage].status = 'completed';
+    }
+    if (drive.stages[nextStage]) {
+      drive.stages[nextStage].status = 'active';
+    }
+
+    await drive.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Drive progressed from ${currentStage} to ${nextStage}`,
+      data: {
+        previousStage: currentStage,
+        currentStage: drive.currentStage,
+        stages: drive.stages
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get drive statistics
+ */
+exports.getDriveStats = async (req, res, next) => {
+  try {
+    const { driveId } = req.params;
+
+    const drive = await Drive.findById(driveId);
+    if (!drive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Drive not found'
+      });
+    }
+
+    const Group = require('../models/Group');
+    const User = require('../models/User');
+
+    const totalGroups = await Group.countDocuments({ drive: driveId });
+    const totalStudents = drive.participatingStudents.length;
+    const totalMentors = drive.mentors.length;
+    
+    const groupsByStatus = await Group.aggregate([
+      { $match: { drive: drive._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    // Students per mentor
+    const studentsPerMentor = await Group.aggregate([
+      { $match: { drive: drive._id, assignedMentor: { $exists: true } } },
+      { $group: { _id: '$assignedMentor', count: { $sum: 1 } } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        drive: {
+          name: drive.name,
+          status: drive.status,
+          currentStage: drive.currentStage
+        },
+        statistics: {
+          totalStudents,
+          totalGroups,
+          totalMentors,
+          maxGroupSize: drive.maxGroupSize,
+          maxGroupsPerMentor: drive.maxGroupsPerMentor,
+          groupsByStatus,
+          studentsPerMentor
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
