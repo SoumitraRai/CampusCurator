@@ -17,6 +17,7 @@ export function useCurrentUser() {
       }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-    retry: false
+    retry: false,
+    gcTime: 0 // Don't cache in memory after logout
   });
 }
