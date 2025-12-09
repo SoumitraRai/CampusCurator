@@ -118,7 +118,15 @@ export default function GroupDetail({ params }) {
     }
   });
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!userLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [user, userLoading, router]);
+
   if (userLoading || groupLoading) return <LoadingSpinner />;
+  if (!user) return null;
   if (!group) return <div className="w-full bg-gray-50 min-h-screen flex items-center justify-center"><p className="text-gray-600">Group not found</p></div>;
 
   const drives = [];
@@ -150,15 +158,16 @@ export default function GroupDetail({ params }) {
     setMentorChoices(next);
   };
 
+  const backLink = user?.role === 'admin' ? `/admin/drives/${group.drive?._id || group.drive}/manage` : '/drives';
+
   return (
-    <ProtectedRole allowedRole="student">
-      <div className="w-full bg-gray-50 min-h-screen">
-        <div className="w-full px-6 py-8">
-          <div className="max-w-7xl mx-auto">
-            {/* Back Link */}
-            <Link href="/drives" className="text-orange-600 hover:text-orange-700 font-medium mb-6 inline-block">
-              ← Back to Drives
-            </Link>
+    <div className="w-full bg-gray-50 min-h-screen">
+      <div className="w-full px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Back Link */}
+          <Link href={backLink} className="text-orange-600 hover:text-orange-700 font-medium mb-6 inline-block">
+            ← Back
+          </Link>
 
             {/* Header */}
             <div className="mb-10">
@@ -516,6 +525,5 @@ export default function GroupDetail({ params }) {
           </div>
         </div>
       </div>
-    </ProtectedRole>
   );
 }
