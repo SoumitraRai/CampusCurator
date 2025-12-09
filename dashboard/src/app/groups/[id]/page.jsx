@@ -70,6 +70,19 @@ export default function GroupDetail({ params }) {
     }
   });
 
+  const manageRequestMutation = useMutation({
+    mutationFn: async ({ memberId, action }) => {
+      const res = await api.put(`/groups/${id}/members/${memberId}`, { body: { action } });
+      return res.data || res;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['group', id] });
+    },
+    onError: (err) => {
+      alert(err.response?.data?.message || 'Unable to update member request');
+    }
+  });
+
   if (userLoading || groupLoading) return <LoadingSpinner />;
   if (!group) return <div className="w-full bg-gray-50 min-h-screen flex items-center justify-center"><p className="text-gray-600">Group not found</p></div>;
 
@@ -78,6 +91,7 @@ export default function GroupDetail({ params }) {
   const userId = user?._id || user?.id;
   const isLeader = userId && group.leader?._id?.toString() === userId.toString();
   const isMember = userId && (group.members || []).some(m => (m.student?._id || m.student)?.toString() === userId.toString());
+  const pendingMembers = (group.members || []).filter(m => m.status === 'pending');
 
   return (
     <ProtectedRole allowedRole="student">
@@ -179,6 +193,40 @@ export default function GroupDetail({ params }) {
                       </div>
                     )}
                   </div>
+
+                  {isLeader && pendingMembers.length > 0 && (
+                    <div className="mb-6 p-4 border border-yellow-200 rounded-lg bg-yellow-50">
+                      <p className="font-semibold text-yellow-800 mb-3">Pending join requests</p>
+                      <div className="space-y-3">
+                        {pendingMembers.map((m) => (
+                          <div key={m._id} className="flex items-center justify-between gap-3 p-3 bg-white rounded border border-yellow-100">
+                            <div>
+                              <p className="font-semibold text-gray-900">{m.student?.name || 'Member'}</p>
+                              <p className="text-sm text-gray-600">{m.student?.email || 'No email'}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => manageRequestMutation.mutate({ memberId: m._id, action: 'accept' })}
+                                disabled={manageRequestMutation.isPending}
+                              >
+                                Accept
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => manageRequestMutation.mutate({ memberId: m._id, action: 'reject' })}
+                                disabled={manageRequestMutation.isPending}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
