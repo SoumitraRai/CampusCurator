@@ -148,7 +148,8 @@ export default function DriveDetail({ params }) {
   const onJoin = async (e) => {
     e.preventDefault();
     try {
-      await joinGroupMutation.mutateAsync({ inviteCode, driveId: id });
+      const trimmedCode = (inviteCode || '').trim().toUpperCase();
+      await joinGroupMutation.mutateAsync({ invitationCode: trimmedCode, drive: id });
       setInviteCode('');
       alert('Join request submitted');
     } catch (err) {
