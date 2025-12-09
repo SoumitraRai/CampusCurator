@@ -1,15 +1,20 @@
 'use client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useCurrentUser } from '@/lib/useCurrentUser';
 import ProtectedRole from '@/components/ProtectedRole';
 import Link from 'next/link';
-import { Card, CardHeader, CardBody, Badge, StatCard, LoadingSpinner, EmptyState } from '@/components/UI';
-import { use } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardHeader, CardBody, Badge, StatCard, LoadingSpinner, EmptyState, Alert, Button } from '@/components/UI';
+import { use, useState } from 'react';
 
 export default function GroupDetail({ params }) {
   const { id } = use(params);
   const { data: user, isLoading: userLoading } = useCurrentUser();
+  const qc = useQueryClient();
+  const router = useRouter();
+  const [leaveError, setLeaveError] = useState('');
+  const [leaveSuccess, setLeaveSuccess] = useState('');
 
   const { data: group, isLoading: groupLoading } = useQuery({
     queryKey: ['group', id],
@@ -47,11 +52,32 @@ export default function GroupDetail({ params }) {
     enabled: !!user
   });
 
+  const leaveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/groups/${id}/leave`);
+      return res.data || res;
+    },
+    onSuccess: () => {
+      setLeaveSuccess('You have left the group.');
+      setLeaveError('');
+      qc.invalidateQueries({ queryKey: ['group', id] });
+      qc.invalidateQueries({ queryKey: ['myGroups'] });
+      setTimeout(() => router.push('/drives'), 1200);
+    },
+    onError: (err) => {
+      setLeaveSuccess('');
+      setLeaveError(err.response?.data?.message || 'Unable to leave this group right now.');
+    }
+  });
+
   if (userLoading || groupLoading) return <LoadingSpinner />;
   if (!group) return <div className="w-full bg-gray-50 min-h-screen flex items-center justify-center"><p className="text-gray-600">Group not found</p></div>;
 
   const drives = [];
   const activeDrives = drives?.filter(d => d.status === 'active').length || 0;
+  const userId = user?._id || user?.id;
+  const isLeader = userId && group.leader?._id?.toString() === userId.toString();
+  const isMember = userId && (group.members || []).some(m => (m.student?._id || m.student)?.toString() === userId.toString());
 
   return (
     <ProtectedRole allowedRole="student">
@@ -68,6 +94,13 @@ export default function GroupDetail({ params }) {
               <h1 className="text-4xl font-bold text-gray-900 mb-2">{group.name}</h1>
               <p className="text-gray-700">{group.projectTitle || 'Project details not set'}</p>
             </div>
+
+            {(leaveError || leaveSuccess) && (
+              <div className="mb-6">
+                {leaveError && <Alert variant="danger">{leaveError}</Alert>}
+                {leaveSuccess && <Alert variant="success">{leaveSuccess}</Alert>}
+              </div>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
@@ -120,6 +153,20 @@ export default function GroupDetail({ params }) {
                     <p className="text-lg font-semibold text-gray-900">{group.assignedMentor?.name || 'Pending Assignment'}</p>
                   </div>
                 </div>
+
+                {(isLeader || isMember) && (
+                  <div className="mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={() => leaveMutation.mutate()}
+                      disabled={leaveMutation.isPending}
+                      className="text-red-600 border-red-300 hover:border-red-400 hover:bg-red-50"
+                    >
+                      {leaveMutation.isPending ? 'Leaving...' : isLeader ? 'Leave group (promote next leader)' : 'Leave group'}
+                    </Button>
+                    <p className="text-xs text-gray-500 mt-2">You cannot leave after mentor allotment.</p>
+                  </div>
+                )}
 
                 {/* Members List */}
                 <div className="mt-8 pt-8 border-t border-gray-200">
