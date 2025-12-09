@@ -1,55 +1,9 @@
 const User = require('../models/User');
 exports.register = async (req, res, next) => {
-  try {
-    const { name, email, password, role, batch, department, registrationNumber } = req.body;
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists with this email'
-      });
-    }
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role,
-      batch,
-      department,
-      registrationNumber
-    });
-    sendTokenResponse(user, 201, res);
-  } catch (error) {
-    next(error);
-  }
+  return res.status(410).json({ success: false, message: 'Email/password registration is disabled. Use Google Sign-In.' });
 };
 exports.login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide an email and password'
-      });
-    }
-    const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-    sendTokenResponse(user, 200, res);
-  } catch (error) {
-    next(error);
-  }
+  return res.status(410).json({ success: false, message: 'Email/password login is disabled. Use Google Sign-In.' });
 };
 exports.getMe = async (req, res, next) => {
   try {
@@ -79,8 +33,35 @@ const sendTokenResponse = (user, statusCode, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      roles: user.roles,
+      activeRole: user.activeRole || user.role,
       batch: user.batch,
       department: user.department
     }
   });
+};
+
+exports.switchRole = async (req, res, next) => {
+  try {
+    const { role } = req.body;
+    if (!role) {
+      return res.status(400).json({ success: false, message: 'Role is required' });
+    }
+
+    const user = await User.findById(req.user.id);
+    const rolesList = Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : [user.role];
+
+    if (!rolesList.includes(role)) {
+      return res.status(403).json({ success: false, message: 'You do not have this role' });
+    }
+
+    // Keep legacy role field in sync for compatibility
+    user.activeRole = role;
+    user.role = role;
+    await user.save();
+
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    next(error);
+  }
 };

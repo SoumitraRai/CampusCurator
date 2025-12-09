@@ -1,8 +1,92 @@
+const path = require('path');
 const Synopsis = require('../models/Synopsis');
 const Group = require('../models/Group');
+const Drive = require('../models/Drive');
 const User = require('../models/User');
-const path = require('path');
-const { notifySynopsisReviewed } = require('../utils/notifications');
+const { notifySynopsisReviewed, createNotificationWithEmail } = require('../utils/notifications');
+const { emailTemplates, sendEmail } = require('../utils/email');
+
+const STATUS = {
+  DRAFT: 'draft',
+  SUBMITTED: 'submitted',
+  UNDER_REVIEW: 'under_review',
+  CHANGES_REQUESTED: 'changes_requested',
+  APPROVED: 'approved',
+  REJECTED: 'rejected'
+};
+
+const TRANSITIONS = {
+  [STATUS.DRAFT]: [STATUS.SUBMITTED],
+  [STATUS.SUBMITTED]: [STATUS.UNDER_REVIEW, STATUS.CHANGES_REQUESTED, STATUS.APPROVED, STATUS.REJECTED],
+  [STATUS.UNDER_REVIEW]: [STATUS.APPROVED, STATUS.REJECTED, STATUS.CHANGES_REQUESTED],
+  [STATUS.CHANGES_REQUESTED]: [STATUS.SUBMITTED],
+  [STATUS.REJECTED]: [STATUS.SUBMITTED],
+  [STATUS.APPROVED]: []
+};
+
+const SUBMITTABLE_STATUSES = [STATUS.DRAFT, STATUS.CHANGES_REQUESTED, STATUS.REJECTED];
+const REVIEW_DECISIONS = [STATUS.UNDER_REVIEW, STATUS.APPROVED, STATUS.REJECTED, STATUS.CHANGES_REQUESTED];
+
+const canTransition = (current, next) => (TRANSITIONS[current] || []).includes(next);
+
+const buildDocumentsFromFiles = files =>
+  (files || []).map(file => ({
+    fileName: file.originalname,
+    fileUrl: `/uploads/${path.basename(file.path)}`,
+    fileSize: file.size,
+    uploadedAt: new Date()
+  }));
+
+const isGroupMember = (group, userId) => {
+  const target = userId.toString();
+  const acceptedMembers = group.members.filter(m => !m.status || m.status === 'accepted');
+  const memberMatch = acceptedMembers.some(m => m.student && m.student.toString() === target);
+  return group.leader.toString() === target || memberMatch;
+};
+
+const takeSnapshot = synopsis => ({
+  version: synopsis.version,
+  title: synopsis.title,
+  abstract: synopsis.abstract,
+  objectives: synopsis.objectives,
+  methodology: synopsis.methodology,
+  expectedOutcome: synopsis.expectedOutcome,
+  technologies: synopsis.technologies,
+  documents: (synopsis.documents || []).map(doc => ({
+    fileName: doc.fileName,
+    fileUrl: doc.fileUrl,
+    fileSize: doc.fileSize,
+    uploadedAt: doc.uploadedAt
+  })),
+  status: synopsis.status,
+  feedback: synopsis.feedback,
+  reviewedBy: synopsis.reviewedBy,
+  reviewedAt: synopsis.reviewedAt,
+  submittedBy: synopsis.submittedBy,
+  submittedAt: synopsis.submittedAt,
+  snapshotTakenAt: new Date()
+});
+
+const ensureDriveAllowsSynopsis = drive => {
+  if (!drive) {
+    return 'Drive not found';
+  }
+
+  if (drive.status !== 'active') {
+    return 'Drive is not active for submissions';
+  }
+
+  const stage = drive.stages?.synopsisSubmission;
+  if (!stage || stage.enabled === false) {
+    return 'Synopsis submission stage is disabled for this drive';
+  }
+
+  if (stage.status !== 'active' && !drive.allowLateSubmissions) {
+    return 'Synopsis submission window is closed for this drive';
+  }
+
+  return null;
+};
 
 /**
  * @desc    Submit synopsis for a group
@@ -13,59 +97,38 @@ exports.submitSynopsis = async (req, res, next) => {
   try {
     const { groupId, title, abstract, objectives, methodology, expectedOutcome, technologies } = req.body;
 
-    // Verify group exists and user is part of it
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({
-        success: false,
-        message: 'Group not found'
-      });
+      return res.status(404).json({ success: false, message: 'Group not found' });
     }
 
-    // Check if user is leader or member of the group
-    const isLeader = group.leader.toString() === req.user.id;
-    const isMember = group.members.some(m => m.student.toString() === req.user.id);
-
-    if (!isLeader && !isMember) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not authorized to submit synopsis for this group'
-      });
+    if (!isGroupMember(group, req.user.id)) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to submit synopsis for this group' });
     }
 
-    // Check if group has assigned mentor
+    const drive = await Drive.findById(group.drive);
+    const driveError = ensureDriveAllowsSynopsis(drive);
+    if (driveError) {
+      return res.status(400).json({ success: false, message: driveError });
+    }
+
     if (!group.assignedMentor) {
-      return res.status(400).json({
-        success: false,
-        message: 'Group must have an assigned mentor before submitting synopsis'
-      });
+      return res.status(400).json({ success: false, message: 'Group must have an assigned mentor before submitting synopsis' });
     }
 
-    // Handle file uploads
-    const documents = [];
-    if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        documents.push({
-          fileName: file.originalname,
-          fileUrl: `/uploads/${path.basename(file.path)}`,
-          fileSize: file.size
-        });
-      });
-    }
-
-    // Check if synopsis already exists for this group
+    const documents = buildDocumentsFromFiles(req.files);
     let synopsis = await Synopsis.findOne({ group: groupId });
 
     if (synopsis) {
-      // Store current version in revisions before updating
-      synopsis.revisions.push({
-        version: synopsis.version,
-        submittedAt: synopsis.submittedAt,
-        feedback: synopsis.feedback,
-        status: synopsis.status
-      });
+      if (!SUBMITTABLE_STATUSES.includes(synopsis.status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Synopsis cannot be resubmitted while it is ${synopsis.status}`
+        });
+      }
 
-      // Update synopsis with new data
+      synopsis.history.push(takeSnapshot(synopsis));
+
       synopsis.version += 1;
       synopsis.title = title;
       synopsis.abstract = abstract;
@@ -75,15 +138,14 @@ exports.submitSynopsis = async (req, res, next) => {
       synopsis.technologies = technologies || synopsis.technologies;
       synopsis.documents = documents.length > 0 ? documents : synopsis.documents;
       synopsis.submittedBy = req.user.id;
-      synopsis.submittedAt = Date.now();
-      synopsis.status = 'submitted';
+      synopsis.submittedAt = new Date();
+      synopsis.status = STATUS.SUBMITTED;
       synopsis.reviewedBy = undefined;
       synopsis.reviewedAt = undefined;
       synopsis.feedback = undefined;
 
       await synopsis.save();
     } else {
-      // Create new synopsis
       synopsis = await Synopsis.create({
         group: groupId,
         drive: group.drive,
@@ -95,32 +157,29 @@ exports.submitSynopsis = async (req, res, next) => {
         technologies,
         documents,
         submittedBy: req.user.id,
-        status: 'submitted'
+        submittedAt: new Date(),
+        status: STATUS.SUBMITTED
       });
     }
 
-    // Populate the response
     await synopsis.populate('group', 'name');
     await synopsis.populate('submittedBy', 'name email');
 
-    // Notify mentor about new synopsis submission
     if (group.assignedMentor) {
-      const { createNotificationWithEmail } = require('../utils/notifications');
-      const { emailTemplates, sendEmail } = require('../utils/email');
-      
       const mentor = await User.findById(group.assignedMentor);
-      
-      // Create in-app notification
-      await createNotificationWithEmail({
-        recipient: group.assignedMentor,
-        type: 'synopsis-submitted',
-        title: 'New Synopsis Submission',
-        message: `Group "${group.name}" has submitted their project synopsis "${title}" for review.`,
-        relatedGroup: groupId,
-        actionUrl: `/mentor/reviews`
-      }, true); // Send email
 
-      // Send detailed email to mentor
+      await createNotificationWithEmail(
+        {
+          recipient: group.assignedMentor,
+          type: 'synopsis-submitted',
+          title: 'New Synopsis Submission',
+          message: `Group "${group.name}" has submitted their project synopsis "${title}" for review.`,
+          relatedGroup: groupId,
+          actionUrl: '/mentor/reviews'
+        },
+        true
+      );
+
       const template = emailTemplates.synopsisSubmitted(group.name, title);
       await sendEmail({
         email: mentor.email,
@@ -159,14 +218,11 @@ exports.getSynopsis = async (req, res, next) => {
       });
     }
 
-    // Check authorization
-    const group = await Group.findById(synopsis.group._id);
-    const isGroupMember = group.leader.toString() === req.user.id || 
-                          group.members.some(m => m.student.toString() === req.user.id);
+    const group = synopsis.group;
     const isMentor = group.assignedMentor && group.assignedMentor.toString() === req.user.id;
     const isAdmin = req.user.role === 'admin';
 
-    if (!isGroupMember && !isMentor && !isAdmin) {
+    if (!isGroupMember(group, req.user.id) && !isMentor && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to view this synopsis'
@@ -199,13 +255,10 @@ exports.getGroupSynopsis = async (req, res, next) => {
       });
     }
 
-    // Check authorization
-    const isGroupMember = group.leader.toString() === req.user.id || 
-                          group.members.some(m => m.student.toString() === req.user.id);
     const isMentor = group.assignedMentor && group.assignedMentor.toString() === req.user.id;
     const isAdmin = req.user.role === 'admin';
 
-    if (!isGroupMember && !isMentor && !isAdmin) {
+    if (!isGroupMember(group, req.user.id) && !isMentor && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to view this synopsis'
@@ -252,7 +305,8 @@ exports.getAllSynopses = async (req, res, next) => {
 
     // Filter by status if provided
     if (status) {
-      query.status = status;
+      const normalizedStatus = status.replace('-', '_');
+      query.status = normalizedStatus;
     }
 
     // Filter by drive if provided
@@ -285,70 +339,48 @@ exports.reviewSynopsis = async (req, res, next) => {
   try {
     const { status, feedback } = req.body;
 
-    // Validate status
-    const validStatuses = ['approved', 'rejected', 'revision-requested'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status. Must be approved, rejected, or revision-requested'
-      });
+    if (!REVIEW_DECISIONS.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status. Must be under_review, approved, rejected, or changes_requested' });
     }
 
-    // Feedback is required for rejection or revision request
-    if ((status === 'rejected' || status === 'revision-requested') && !feedback) {
-      return res.status(400).json({
-        success: false,
-        message: 'Feedback is required when rejecting or requesting revision'
-      });
+    if ([STATUS.REJECTED, STATUS.CHANGES_REQUESTED].includes(status) && !feedback) {
+      return res.status(400).json({ success: false, message: 'Feedback is required when rejecting or requesting changes' });
     }
 
-    const synopsis = await Synopsis.findById(req.params.id)
-      .populate('group', 'name leader members assignedMentor');
+    const synopsis = await Synopsis.findById(req.params.id).populate('group', 'name leader members assignedMentor');
 
     if (!synopsis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Synopsis not found'
-      });
+      return res.status(404).json({ success: false, message: 'Synopsis not found' });
     }
 
-    // Check if user is the assigned mentor
-    if (synopsis.group.assignedMentor.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the assigned mentor can review this synopsis'
-      });
+    if (synopsis.group.assignedMentor?.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only the assigned mentor can review this synopsis' });
     }
 
-    // Check if synopsis is in a reviewable state
-    if (!['submitted', 'under-review'].includes(synopsis.status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot review synopsis with status: ${synopsis.status}`
-      });
+    if (!canTransition(synopsis.status, status)) {
+      return res.status(400).json({ success: false, message: `Cannot transition synopsis from ${synopsis.status} to ${status}` });
     }
 
-    // Update synopsis
+    synopsis.history.push(takeSnapshot(synopsis));
+
     synopsis.status = status;
     synopsis.feedback = feedback;
     synopsis.reviewedBy = req.user.id;
-    synopsis.reviewedAt = Date.now();
+    synopsis.reviewedAt = new Date();
 
     await synopsis.save();
     await synopsis.populate('reviewedBy', 'name email');
 
-    // Get all group members for notification
     const group = await Group.findById(synopsis.group._id).populate('leader members.student');
     const studentIds = [group.leader._id, ...group.members.map(m => m.student._id)];
 
-    // Notify students about review
     await notifySynopsisReviewed(
       synopsis.group._id,
       synopsis.group.name,
       studentIds,
       status,
       feedback || 'No feedback provided',
-      true // Send email
+      true
     );
 
     res.status(200).json({
@@ -379,35 +411,26 @@ exports.updateSynopsis = async (req, res, next) => {
       });
     }
 
-    // Check if user is part of the group
     const group = synopsis.group;
-    const isLeader = group.leader.toString() === req.user.id;
-    const isMember = group.members.some(m => m.student.toString() === req.user.id);
-
-    if (!isLeader && !isMember) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not authorized to update this synopsis'
-      });
+    if (!isGroupMember(group, req.user.id)) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to update this synopsis' });
     }
 
-    // Can only update if status is revision-requested or draft
-    if (!['revision-requested', 'draft'].includes(synopsis.status)) {
+    const drive = await Drive.findById(group.drive);
+    const driveError = ensureDriveAllowsSynopsis(drive);
+    if (driveError) {
+      return res.status(400).json({ success: false, message: driveError });
+    }
+
+    if (!SUBMITTABLE_STATUSES.includes(synopsis.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Synopsis can only be updated when revision is requested or in draft status'
+        message: 'Synopsis can only be updated when changes are requested, rejected, or in draft'
       });
     }
 
-    // Store current version in revisions
-    synopsis.revisions.push({
-      version: synopsis.version,
-      submittedAt: synopsis.submittedAt,
-      feedback: synopsis.feedback,
-      status: synopsis.status
-    });
+    synopsis.history.push(takeSnapshot(synopsis));
 
-    // Update fields
     synopsis.version += 1;
     synopsis.title = title || synopsis.title;
     synopsis.abstract = abstract || synopsis.abstract;
@@ -416,22 +439,14 @@ exports.updateSynopsis = async (req, res, next) => {
     synopsis.expectedOutcome = expectedOutcome || synopsis.expectedOutcome;
     synopsis.technologies = technologies || synopsis.technologies;
     synopsis.submittedBy = req.user.id;
-    synopsis.submittedAt = Date.now();
-    synopsis.status = 'submitted';
+    synopsis.submittedAt = new Date();
+    synopsis.status = STATUS.SUBMITTED;
     synopsis.reviewedBy = undefined;
     synopsis.reviewedAt = undefined;
     synopsis.feedback = undefined;
 
-    // Handle new file uploads
-    if (req.files && req.files.length > 0) {
-      const documents = [];
-      req.files.forEach(file => {
-        documents.push({
-          fileName: file.originalname,
-          fileUrl: `/uploads/${path.basename(file.path)}`,
-          fileSize: file.size
-        });
-      });
+    const documents = buildDocumentsFromFiles(req.files);
+    if (documents.length > 0) {
       synopsis.documents = documents;
     }
 
@@ -470,6 +485,32 @@ exports.deleteSynopsis = async (req, res, next) => {
       success: true,
       message: 'Synopsis deleted successfully'
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get synopsis history (versions)
+ * @route   GET /api/synopsis/:id/history
+ * @access  Private
+ */
+exports.getSynopsisHistory = async (req, res, next) => {
+  try {
+    const synopsis = await Synopsis.findById(req.params.id).populate('group', 'leader members assignedMentor');
+
+    if (!synopsis) {
+      return res.status(404).json({ success: false, message: 'Synopsis not found' });
+    }
+
+    const group = synopsis.group;
+    const isMentor = group.assignedMentor && group.assignedMentor.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    if (!isGroupMember(group, req.user.id) && !isMentor && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to view this history' });
+    }
+
+    res.status(200).json({ success: true, data: synopsis.history || [] });
   } catch (error) {
     next(error);
   }

@@ -8,7 +8,8 @@ const {
   getAllSynopses,
   reviewSynopsis,
   updateSynopsis,
-  deleteSynopsis
+  deleteSynopsis,
+  getSynopsisHistory
 } = require('../controllers/synopsisController');
 
 const router = express.Router();
@@ -27,6 +28,9 @@ router.post(
 
 // Get synopsis for a specific group
 router.get('/group/:groupId', protect, getGroupSynopsis);
+
+// Get synopsis history (versions)
+router.get('/:id/history', protect, getSynopsisHistory);
 
 // Get specific synopsis by ID
 router.get('/:id', protect, getSynopsis);
