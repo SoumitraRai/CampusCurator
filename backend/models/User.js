@@ -29,9 +29,19 @@ const userSchema = new mongoose.Schema({
     enum: ['student', 'mentor', 'admin'],
     default: 'student'
   },
+  roles: {
+    type: [String],
+    enum: ['student', 'mentor', 'admin'],
+    default: ['student']
+  },
+  activeRole: {
+    type: String,
+    enum: ['student', 'mentor', 'admin'],
+    default: 'student'
+  },
   batch: {
     type: String,
-    required: function() {
+    required: function () {
       return this.role === 'student';
     }
   },
@@ -62,18 +72,23 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     next();
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
-userSchema.methods.matchPassword = async function(enteredPassword) {
+userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
-userSchema.methods.getSignedJwtToken = function() {
-  return jwt.sign({ id: this._id, role: this.role }, process.env.JWT_SECRET, {
+userSchema.methods.getSignedJwtToken = function () {
+  return jwt.sign({
+    id: this._id,
+    role: this.role,
+    roles: this.roles,
+    activeRole: this.activeRole || this.role
+  }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE
   });
 };

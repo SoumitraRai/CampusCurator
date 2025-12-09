@@ -6,9 +6,18 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // helper to sign your app JWT (matches your existing login controller)
 function signAppToken(user) {
-  return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
-  });
+  return jwt.sign(
+    {
+      id: user._id,
+      role: user.role,
+      roles: user.roles,
+      activeRole: user.activeRole || user.role
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRE || '7d'
+    }
+  );
 }
 
 /**
@@ -126,6 +135,8 @@ exports.googleAuth = async (req, res, next) => {
         email,
         password: randomPassword,
         role: roleToCreate,
+        roles: [roleToCreate],
+        activeRole: roleToCreate,
         profileImage: payload.picture,
         oauthProvider: 'google',
         oauthId: payload.sub
@@ -144,6 +155,14 @@ exports.googleAuth = async (req, res, next) => {
       // If existing user is student but parsed role is mentor (or vice versa) we won't flip roles automatically.
       // Optionally update name/profile image
       let updated = false;
+      if (!user.roles || user.roles.length === 0) {
+        user.roles = [user.role];
+        updated = true;
+      }
+      if (!user.activeRole) {
+        user.activeRole = user.role;
+        updated = true;
+      }
       if (!user.profileImage && payload.picture) {
         user.profileImage = payload.picture;
         updated = true;
@@ -167,6 +186,8 @@ exports.googleAuth = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        roles: user.roles,
+        activeRole: user.activeRole || user.role,
         batch: user.batch,
         department: user.department,
         profileImage: user.profileImage

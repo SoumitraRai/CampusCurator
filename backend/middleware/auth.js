@@ -1,5 +1,13 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+
+const resolveActiveRole = (user, headerRole) => {
+  const candidate = headerRole || user.activeRole || user.role;
+  if (!candidate) return null;
+  const rolesList = Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : [user.role];
+  return rolesList.includes(candidate) ? candidate : rolesList[0];
+};
+
 exports.protect = async (req, res, next) => {
   let token;
   if (
@@ -23,6 +31,8 @@ exports.protect = async (req, res, next) => {
         message: 'User not found'
       });
     }
+    const headerRole = req.headers['x-active-role'];
+    req.activeRole = resolveActiveRole(req.user, headerRole || decoded.activeRole);
     next();
   } catch (error) {
     return res.status(401).json({
@@ -33,10 +43,14 @@ exports.protect = async (req, res, next) => {
 };
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    const roleToCheck = req.activeRole || req.user?.activeRole || req.user?.role;
+    const userRoles = Array.isArray(req.user?.roles) && req.user.roles.length > 0 ? req.user.roles : [req.user?.role];
+    const authorized = roles.some(r => userRoles.includes(r) && r === roleToCheck);
+
+    if (!authorized) {
       return res.status(403).json({
         success: false,
-        message: `User role ${req.user.role} is not authorized to access this route`
+        message: `User role ${roleToCheck} is not authorized to access this route`
       });
     }
     next();

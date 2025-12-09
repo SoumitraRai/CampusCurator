@@ -61,7 +61,7 @@ const synopsisSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'submitted', 'under-review', 'approved', 'rejected', 'revision-requested'],
+    enum: ['draft', 'submitted', 'under_review', 'changes_requested', 'approved', 'rejected'],
     default: 'draft'
   },
   reviewedBy: {
@@ -73,11 +73,39 @@ const synopsisSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  revisions: [{
+  history: [{
     version: Number,
-    submittedAt: Date,
+    title: String,
+    abstract: String,
+    objectives: String,
+    methodology: String,
+    expectedOutcome: String,
+    technologies: [String],
+    documents: [{
+      fileName: String,
+      fileUrl: String,
+      fileSize: Number,
+      uploadedAt: Date
+    }],
+    status: {
+      type: String,
+      enum: ['draft', 'submitted', 'under_review', 'changes_requested', 'approved', 'rejected']
+    },
     feedback: String,
-    status: String
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reviewedAt: Date,
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    submittedAt: Date,
+    snapshotTakenAt: {
+      type: Date,
+      default: Date.now
+    }
   }]
 }, {
   timestamps: true

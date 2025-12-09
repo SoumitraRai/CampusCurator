@@ -193,7 +193,8 @@ const notifySynopsisReviewed = async (groupId, groupName, studentIds, status, fe
   const statusMessages = {
     approved: 'Your project synopsis has been approved!',
     rejected: 'Your project synopsis has been rejected. Please review the feedback.',
-    'revision-requested': 'Your mentor has requested revisions to your synopsis.'
+    changes_requested: 'Your mentor has requested revisions to your synopsis.',
+    under_review: 'Your project synopsis is now under review.'
   };
 
   const data = {
