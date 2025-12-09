@@ -8,6 +8,7 @@ const {
   removeMember,
   deleteGroup,
   allotMentor,
+  unassignMentor,
   autoAllotMentors,
   autoGroupRemainingStudents,
   getRemainingStudents
@@ -47,5 +48,6 @@ router
   .delete(protect, authorize('student'), removeMember);
 router
   .route('/:id/mentor')
-  .put(protect, authorize('admin'), allotMentor);
+  .put(protect, authorize('admin'), allotMentor)
+  .delete(protect, authorize('admin'), unassignMentor);
 module.exports = router;
