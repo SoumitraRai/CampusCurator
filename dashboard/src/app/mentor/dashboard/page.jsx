@@ -10,7 +10,7 @@ export default function MentorDashboard() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
 
   const { data: assignedGroups, isLoading: groupsLoading } = useQuery({
-    queryKey: ['mentorGroups'],
+    queryKey: ['mentorGroups', user?._id],
     queryFn: async () => {
       const res = await api.get('/groups');
       const groups = res.data || res.groups || res;
@@ -19,7 +19,9 @@ export default function MentorDashboard() {
         ? groups.filter(g => g.assignedMentor?._id === myId || g.assignedMentor === myId) 
         : [];
     },
-    enabled: !!user
+    enabled: !!user,
+    refetchInterval: 5000, // Auto-refetch every 5 seconds to catch new assignments
+    refetchOnWindowFocus: true
   });
 
   const { data: pendingSynopses } = useQuery({

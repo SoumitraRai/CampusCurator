@@ -232,23 +232,23 @@ export default function DriveManagement({ params }) {
             </div>
             <div className="px-6 py-5">
               {showAutoGroup && (
-              <div className="mb-4 p-4 bg-yellow-50 rounded">
-                <p className="text-sm mb-3">This will automatically group remaining {remainingStudents.length} students</p>
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+                <p className="text-sm text-gray-800 mb-3 font-medium">This will automatically group remaining {remainingStudents.length} students</p>
                 <button
                   onClick={() => autoGroupMutation.mutate()}
                   disabled={autoGroupMutation.isPending}
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 font-medium"
+                  className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium shadow-sm"
                 >
-                  {autoGroupMutation.isPending ? 'Creating Groups...' : 'Confirm Auto-Group'}
+                  {autoGroupMutation.isPending ? '⏳ Creating Groups...' : '✓ Confirm Auto-Group'}
                 </button>
               </div>
               )}
 
-              <div className="grid gap-2">
+              <div className="grid gap-3">
               {remainingStudents.map(s => (
-                <div key={s._id} className="border p-3 rounded bg-gray-50">
-                  <div className="font-medium text-gray-900">{s.name}</div>
-                  <div className="text-sm text-gray-600">Entry No: {s.registrationNumber || 'N/A'}</div>
+                <div key={s._id} className="border border-gray-300 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition">
+                  <div className="font-bold text-gray-900">{s.name}</div>
+                  <div className="text-sm text-gray-700 mt-1"><span className="font-medium">Entry No:</span> {s.registrationNumber || 'N/A'}</div>
                 </div>
               ))}
               </div>
@@ -261,7 +261,7 @@ export default function DriveManagement({ params }) {
           <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Groups ({groups?.length || 0})</h2>
-              {drive.currentStage === 'group-formation' && (
+              {drive.currentStage === 'mentor-allotment' && (
                 <button
                   onClick={() => setShowAutoAllot(!showAutoAllot)}
                   className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 font-medium"
@@ -274,41 +274,41 @@ export default function DriveManagement({ params }) {
           <div className="px-6 py-5">
 
             {showAutoAllot && (
-            <div className="mb-4 p-4 bg-green-50 rounded">
-              <p className="text-sm mb-3">This will allot mentors based on group creation timestamp and preferences</p>
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-gray-800 mb-3 font-medium">This will allot mentors based on group creation timestamp and preferences</p>
               <button
                 onClick={() => autoAllotMutation.mutate()}
                 disabled={autoAllotMutation.isPending}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 font-medium"
+                className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium shadow-sm"
               >
-                {autoAllotMutation.isPending ? 'Allotting...' : 'Confirm Auto-Allot'}
+                {autoAllotMutation.isPending ? '⏳ Allotting...' : '✓ Confirm Auto-Allot'}
               </button>
             </div>
           )}
 
           <div className="grid gap-4">
             {groups?.map(g => (
-              <div key={g._id} className="border p-4 rounded hover:bg-gray-50">
+              <div key={g._id} className="border border-gray-300 p-4 rounded-lg hover:bg-gray-50 hover:shadow-md transition">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{g.name}</h3>
-                    <p className="text-sm text-gray-600">Project: {g.projectTitle || 'N/A'}</p>
-                    <p className="text-sm text-gray-600">Members: {g.members?.length + 1 || 1}</p>
-                    <p className="text-sm text-gray-600">Leader: {g.leader?.name || g.leader?.email}</p>
-                    <p className="text-sm text-gray-600 font-medium">Mentor: {g.assignedMentor?.name || 'Not assigned'}</p>
-                    <p className="text-xs text-gray-500 mt-1">Created: {new Date(g.createdAt).toLocaleString()}</p>
+                    <h3 className="font-bold text-lg text-gray-900">{g.name}</h3>
+                    <p className="text-sm text-gray-700 mt-1"><span className="font-medium">Project:</span> {g.projectTitle || 'N/A'}</p>
+                    <p className="text-sm text-gray-700"><span className="font-medium">Members:</span> {g.members?.length + 1 || 1}</p>
+                    <p className="text-sm text-gray-700"><span className="font-medium">Leader:</span> {g.leader?.name || g.leader?.email}</p>
+                    <p className="text-sm text-gray-900 font-semibold mt-1"><span className="font-medium text-gray-700">Mentor:</span> {g.assignedMentor?.name || 'Not assigned'}</p>
+                    <p className="text-xs text-gray-500 mt-2">Created: {new Date(g.createdAt).toLocaleString()}</p>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <span className={`text-xs font-medium px-3 py-1 rounded ${
-                      g.status === 'mentor-assigned' ? 'bg-green-100 text-green-800' :
-                      g.status === 'formed' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
+                  <div className="flex items-start gap-2 shrink-0">
+                    <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${
+                      g.status === 'mentor-assigned' ? 'bg-green-100 text-green-800 border border-green-300' :
+                      g.status === 'formed' ? 'bg-blue-100 text-blue-800 border border-blue-300' :
+                      'bg-gray-100 text-gray-800 border border-gray-300'
                     }`}>
-                      {g.status === 'mentor-assigned' ? 'Mentor Assigned' : g.status === 'formed' ? 'Awaiting Mentor' : g.status}
+                      {g.status === 'mentor-assigned' ? '✓ Mentor Assigned' : g.status === 'formed' ? '⏳ Awaiting Mentor' : g.status}
                     </span>
                     <Link href={`/drives/${id}?group=${g._id}`}>
-                      <button className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium" title="View Group">
-                        View
+                      <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm" title="View Group">
+                        👁️ View
                       </button>
                     </Link>
                     {g.assignedMentor && (
@@ -319,10 +319,10 @@ export default function DriveManagement({ params }) {
                           }
                         }}
                         disabled={unassignMentorMutation.isPending}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                         title="Unassign Mentor"
                       >
-                        {unassignMentorMutation.isPending ? '⏳' : 'Unassign Mentor'}
+                        {unassignMentorMutation.isPending ? '⏳' : '✕ Unassign'}
                       </button>
                     )}
                   </div>
