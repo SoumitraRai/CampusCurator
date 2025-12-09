@@ -184,24 +184,24 @@ export default function GroupDetail({ params }) {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <StatCard 
-                label="Group Members" 
-                value={(group.members?.filter(m => m.status === 'accepted').length || 0) + 1} 
+              <StatCard
+                label="Group Members"
+                value={(group.members?.filter(m => m.status === 'accepted').length || 0) + 1}
                 color="blue"
               />
-              <StatCard 
-                label="Submissions" 
-                value={mySubmissions?.filter(s => s.group === id)?.length || 0} 
+              <StatCard
+                label="Submissions"
+                value={mySubmissions?.filter(s => s.group === id)?.length || 0}
                 color="green"
               />
-              <StatCard 
-                label="Mentor" 
-                value={group.assignedMentor?.name ? 'Assigned' : 'Pending'} 
+              <StatCard
+                label="Mentor"
+                value={group.assignedMentor?.name ? 'Assigned' : 'Pending'}
                 color="purple"
               />
-              <StatCard 
-                label="Results" 
-                value={myResults?.filter(r => r.group === id)?.length || 0} 
+              <StatCard
+                label="Results"
+                value={myResults?.filter(r => r.group === id)?.length || 0}
                 color="orange"
               />
             </div>
@@ -456,8 +456,8 @@ export default function GroupDetail({ params }) {
                 <CardBody>
                   <div className="grid gap-4">
                     {mySubmissions.filter(s => s.group === id).map(s => (
-                      <div 
-                        key={s._id} 
+                      <div
+                        key={s._id}
                         className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
                       >
                         <div className="flex items-start justify-between mb-3">
@@ -499,8 +499,8 @@ export default function GroupDetail({ params }) {
                 <CardBody>
                   <div className="grid gap-4">
                     {myResults.filter(r => r.group === id).map(r => (
-                      <div 
-                        key={r._id} 
+                      <div
+                        key={r._id}
                         className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
                       >
                         <div className="flex items-start justify-between">

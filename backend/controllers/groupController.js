@@ -72,12 +72,12 @@ exports.createGroup = async (req, res, next) => {
   try {
     const { name, drive, maxMembers, mentorPreferences } = req.body;
     const driveDoc = await Drive.findById(drive);
-    
+
     console.log('🎯 Creating group for drive:', drive);
     console.log('📊 Drive found:', driveDoc ? 'YES' : 'NO');
     console.log('📌 Drive status:', driveDoc?.status);
     console.log('✅ Is active?:', driveDoc?.status === 'active');
-    
+
     if (!driveDoc || driveDoc.status !== 'active') {
       return res.status(400).json({
         success: false,
@@ -446,7 +446,7 @@ exports.allotMentor = async (req, res, next) => {
 exports.unassignMentor = async (req, res, next) => {
   try {
     console.log('🔄 Unassigning mentor from group:', req.params.id);
-    
+
     const group = await Group.findById(req.params.id);
     if (!group) {
       console.log('❌ Group not found:', req.params.id);
@@ -527,10 +527,10 @@ exports.autoAllotMentors = async (req, res, next) => {
       // Check mentor preferences in order (1st, 2nd, 3rd choice)
       if (group.mentorPreferences && group.mentorPreferences.length > 0) {
         const sortedPrefs = group.mentorPreferences.sort((a, b) => a.rank - b.rank);
-        
+
         for (const pref of sortedPrefs) {
           const mentorId = pref.mentor._id.toString();
-          
+
           // Check if mentor has capacity
           if (mentorCapacity[mentorId] > 0) {
             group.assignedMentor = pref.mentor._id;
@@ -592,7 +592,7 @@ exports.autoAllotMentors = async (req, res, next) => {
 exports.autoGroupRemainingStudents = async (req, res, next) => {
   try {
     const { driveId } = req.params;
-    
+
     const drive = await Drive.findById(driveId).populate('participatingStudents');
     if (!drive) {
       return res.status(404).json({
@@ -646,7 +646,7 @@ exports.autoGroupRemainingStudents = async (req, res, next) => {
       // Create group when full or at end of list
       if (currentGroupStudents.length === groupSize || i === remainingStudents.length - 1) {
         const invitationCode = uuidv4().substring(0, 8).toUpperCase();
-        
+
         const newGroup = await Group.create({
           name: `Auto-Group-${Date.now()}`,
           drive: driveId,
@@ -691,7 +691,7 @@ exports.autoGroupRemainingStudents = async (req, res, next) => {
 exports.getRemainingStudents = async (req, res, next) => {
   try {
     const { driveId } = req.params;
-    
+
     const drive = await Drive.findById(driveId).populate('participatingStudents', 'name email batch registrationNumber');
     if (!drive) {
       return res.status(404).json({
