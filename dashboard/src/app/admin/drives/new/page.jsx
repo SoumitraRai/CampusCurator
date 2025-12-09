@@ -49,6 +49,23 @@ export default function NewDrivePage() {
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Map email arrays to objects with email and name
+      const studentsData = form.participatingStudents.map(email => {
+        const student = availableStudents.find(s => s.email === email);
+        return {
+          email: email,
+          name: student?.name || email.split('@')[0]
+        };
+      });
+
+      const mentorsData = form.mentors.map(email => {
+        const mentor = availableMentors.find(m => m.email === email);
+        return {
+          email: email,
+          name: mentor?.name || email.split('@')[0]
+        };
+      });
+
       const payload = {
         name: form.name,
         description: form.description,
@@ -57,8 +74,8 @@ export default function NewDrivePage() {
         maxGroupSize: Number(form.maxGroupSize),
         minGroupSize: Number(form.minGroupSize),
         maxGroupsPerMentor: Number(form.maxGroupsPerMentor),
-        participatingStudents: form.participatingStudents, // Array of student emails
-        mentors: form.mentors // Array of mentor emails
+        participatingStudents: studentsData, // Array of {email, name}
+        mentors: mentorsData // Array of {email, name}
       };
       const result = await api.post('/drives', { body: payload });
       console.log('Drive created:', result);

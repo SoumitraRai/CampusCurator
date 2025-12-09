@@ -14,22 +14,31 @@ exports.createDrive = async (req, res, next) => {
 
     driveData.createdBy = req.user.id;
 
-    // Handle student emails (support both formats)
-    const studentEmails = participatingStudentEmails || participatingStudents;
-    if (studentEmails && studentEmails.length > 0) {
+    // Handle student emails (support both formats: array of strings or array of objects)
+    let studentData = participatingStudentEmails || participatingStudents;
+    // Normalize to array of objects {email, name}
+    if (studentData && studentData.length > 0) {
+      studentData = studentData.map(item => 
+        typeof item === 'string' ? { email: item, name: item.split('@')[0] } : item
+      );
+      
+      const studentEmails = studentData.map(s => s.email);
       const existingStudents = await User.find({
         email: { $in: studentEmails },
         role: 'student'
       });
       
       const foundEmails = existingStudents.map(s => s.email);
-      const notFoundEmails = studentEmails.filter(email => !foundEmails.includes(email));
+      const notFoundData = studentData.filter(item => !foundEmails.includes(item.email));
       
       // Auto-create missing students
-      if (notFoundEmails.length > 0) {
-        console.log(`📝 Auto-creating ${notFoundEmails.length} new students...`);
+      if (notFoundData.length > 0) {
+        console.log(`📝 Auto-creating ${notFoundData.length} new students...`);
         
-        const newStudents = notFoundEmails.map(email => {
+        const newStudents = notFoundData.map(item => {
+          const email = item.email;
+          const name = item.name || email.split('@')[0];
+          
           // Extract details from email (e.g., 22bcs015@smvdu.ac.in)
           const entryNo = email.split('@')[0].toLowerCase();
           
@@ -56,7 +65,7 @@ exports.createDrive = async (req, res, next) => {
           }
           
           return {
-            name: entryNo.toUpperCase(),
+            name: name,
             email: email,
             password: 'student123', // Default password
             role: 'student',
@@ -74,7 +83,7 @@ exports.createDrive = async (req, res, next) => {
           if (err.code === 11000) {
             // Some duplicates, fetch them
             const retryStudents = await User.find({
-              email: { $in: notFoundEmails },
+              email: { $in: notFoundData.map(item => item.email) },
               role: 'student'
             });
             existingStudents.push(...retryStudents);
@@ -87,31 +96,40 @@ exports.createDrive = async (req, res, next) => {
       driveData.participatingStudents = existingStudents.map(s => s._id);
     }
 
-    // Handle mentor emails (support both formats)
-    const mentorEmailsList = mentorEmails || mentors;
-    if (mentorEmailsList && mentorEmailsList.length > 0) {
+    // Handle mentor emails (support both formats: array of strings or array of objects)
+    let mentorData = mentorEmails || mentors;
+    // Normalize to array of objects {email, name}
+    if (mentorData && mentorData.length > 0) {
+      mentorData = mentorData.map(item => 
+        typeof item === 'string' ? { email: item, name: item.split('@')[0] } : item
+      );
+      
+      const mentorEmailsList = mentorData.map(m => m.email);
       const existingMentors = await User.find({
         email: { $in: mentorEmailsList },
         role: 'mentor'
       });
       
       const foundEmails = existingMentors.map(m => m.email);
-      const notFoundEmails = mentorEmailsList.filter(email => !foundEmails.includes(email));
+      const notFoundData = mentorData.filter(item => !foundEmails.includes(item.email));
       
       // Auto-create missing mentors
-      if (notFoundEmails.length > 0) {
-        console.log(`📝 Auto-creating ${notFoundEmails.length} new mentors...`);
+      if (notFoundData.length > 0) {
+        console.log(`📝 Auto-creating ${notFoundData.length} new mentors...`);
         
-        const newMentors = notFoundEmails.map(email => {
-          // Extract name from email (john.smith@smvdu.ac.in -> John Smith)
-          const namePart = email.split('@')[0];
-          const nameParts = namePart.split(/[._-]/);
-          const formattedName = nameParts
-            .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-            .join(' ');
+        const newMentors = notFoundData.map(item => {
+          const email = item.email;
+          const name = item.name || (() => {
+            // Extract name from email (john.smith@smvdu.ac.in -> John Smith)
+            const namePart = email.split('@')[0];
+            const nameParts = namePart.split(/[._-]/);
+            return nameParts
+              .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+              .join(' ');
+          })();
           
           return {
-            name: formattedName || email.split('@')[0],
+            name: name,
             email: email,
             password: 'mentor123', // Default password
             role: 'mentor',
@@ -128,7 +146,7 @@ exports.createDrive = async (req, res, next) => {
           if (err.code === 11000) {
             // Some duplicates, fetch them
             const retryMentors = await User.find({
-              email: { $in: notFoundEmails },
+              email: { $in: notFoundData.map(item => item.email) },
               role: 'mentor'
             });
             existingMentors.push(...retryMentors);

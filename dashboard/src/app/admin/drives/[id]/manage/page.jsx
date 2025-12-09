@@ -245,15 +245,12 @@ export default function DriveManagement({ params }) {
               )}
 
               <div className="grid gap-2">
-              {remainingStudents.slice(0, 10).map(s => (
+              {remainingStudents.map(s => (
                 <div key={s._id} className="border p-3 rounded bg-gray-50">
-                  <div className="font-medium">{s.name}</div>
-                  <div className="text-sm text-gray-600">{s.registrationNumber || s.email}</div>
+                  <div className="font-medium text-gray-900">{s.name}</div>
+                  <div className="text-sm text-gray-600">Entry No: {s.registrationNumber || 'N/A'}</div>
                 </div>
               ))}
-              {remainingStudents.length > 10 && (
-                <div className="text-sm text-gray-500">... and {remainingStudents.length - 10} more</div>
-              )}
               </div>
             </div>
           </section>
