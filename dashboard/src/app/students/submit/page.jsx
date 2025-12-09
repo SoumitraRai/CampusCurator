@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import ProtectedRole from '@/components/ProtectedRole';
@@ -12,8 +12,17 @@ export default function SubmitFile() {
   const [file, setFile] = useState(null);
   const [description, setDescription] = useState('');
   const [groupId, setGroupId] = useState('');
+  const [driveId, setDriveId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const { data: myGroups } = useQuery({
+    queryKey: ['myGroups'],
+    queryFn: async () => {
+      const res = await api.get('/groups');
+      return res.data?.data || res.data || [];
+    }
+  });
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -22,23 +31,25 @@ export default function SubmitFile() {
       formData.append('submissionType', submissionType);
       formData.append('description', description);
       formData.append('groupId', groupId);
+      if (driveId) formData.append('driveId', driveId);
 
-      const res = await api.post('/submissions', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      return res.data;
+      return api.post('/submissions', { body: formData });
     },
     onSuccess: () => {
       setSuccess('Submission successful!');
       setTimeout(() => router.push('/students/dashboard'), 2000);
     },
     onError: (err) => {
-      setError(err.response?.data?.message || 'Failed to submit');
+      setError(err?.data?.message || err?.message || 'Failed to submit');
     }
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!groupId) {
+      setError('Please select a group');
+      return;
+    }
     if (!file) {
       setError('Please select a file');
       return;
@@ -90,15 +101,25 @@ export default function SubmitFile() {
                     <label htmlFor="group-id" className="block text-sm font-semibold text-gray-900 mb-2">
                       Group ID *
                     </label>
-                    <input
+                    <select
                       id="group-id"
-                      type="text"
                       value={groupId}
-                      onChange={(e) => setGroupId(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setGroupId(value);
+                        const selected = myGroups?.find(g => g._id === value);
+                        // drive can be an ObjectId or populated object; normalize to id string
+                        const driveValue = selected?.drive?._id || selected?.drive || '';
+                        setDriveId(driveValue?.toString() || '');
+                      }}
                       required
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none text-gray-900 placeholder-gray-500 bg-white"
-                      placeholder="Your group ID"
-                    />
+                    >
+                      <option value="">Choose your group</option>
+                      {myGroups?.map(g => (
+                        <option key={g._id} value={g._id}>{g.name}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -111,6 +132,7 @@ export default function SubmitFile() {
                         type="file"
                         onChange={(e) => setFile(e.target.files?.[0])}
                         required
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.rar,.jpg,.jpeg,.png,.webp,.mp4,.avi"
                         className="hidden"
                       />
                       <label htmlFor="file" className="cursor-pointer">
@@ -127,6 +149,7 @@ export default function SubmitFile() {
                         )}
                       </label>
                     </div>
+                    <p className="text-xs text-gray-500 mt-2">Allowed: pdf, doc, docx, ppt, pptx, zip, rar, jpg, jpeg, png, webp, mp4, avi</p>
                   </div>
 
                   <div>

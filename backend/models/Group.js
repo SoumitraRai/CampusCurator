@@ -90,7 +90,7 @@ groupSchema.index({ leader: 1 });
 groupSchema.index({ 'members.student': 1 });
 groupSchema.index({ assignedMentor: 1 });
 groupSchema.index({ invitationCode: 1 });
-groupSchema.virtual('acceptedMembersCount').get(function() {
+groupSchema.virtual('acceptedMembersCount').get(function () {
   return this.members.filter(m => m.status === 'accepted').length + 1;
 });
 module.exports = mongoose.model('Group', groupSchema);

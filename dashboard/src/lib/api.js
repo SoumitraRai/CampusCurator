@@ -27,15 +27,17 @@ async function request(method, path, { body, qs, headers } = {}) {
 
   const token = getToken();
   const activeRole = getActiveRole();
+
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   const res = await fetch(url.toString(), {
     method,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(activeRole ? { 'X-Active-Role': activeRole } : {}),
       ...(headers || {})
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
     credentials: 'include'
   });
 

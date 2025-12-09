@@ -16,7 +16,7 @@ export default function DriveDetail({ params }) {
   const { id } = use(params);
   const qc = useQueryClient();
   const { data: user } = useCurrentUser();
-  
+
   const { data, isLoading } = useQuery({
     queryKey: ['drive', id],
     queryFn: () => fetchDrive(id)
@@ -205,7 +205,7 @@ export default function DriveDetail({ params }) {
                             <div className="flex gap-2 flex-col items-end">
                               <Link href={`/groups/${g._id}`} className="text-orange-500 hover:text-orange-600 font-medium whitespace-nowrap">View →</Link>
                               {!g.assignedMentor && (
-                                <button 
+                                <button
                                   onClick={() => setSelectedGroupForMentor(g._id)}
                                   className="text-white bg-orange-500 hover:bg-orange-600 font-medium px-3 py-1 rounded text-sm whitespace-nowrap transition"
                                 >
@@ -273,7 +273,7 @@ export default function DriveDetail({ params }) {
                       <form onSubmit={onCreateGroup} className="space-y-4">
                         <div>
                           <label htmlFor="group-name" className="block text-sm font-medium text-gray-700 mb-1">Group Name</label>
-                          <input id="group-name" value={name} onChange={(e)=>setName(e.target.value)} placeholder="Enter group name" className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" />
+                          <input id="group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter group name" className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" />
                           <p className="text-xs text-gray-500 mt-1">Max members: {drive.maxGroupSize}</p>
                         </div>
                         <Button type="submit" variant="primary" className="w-full">Create Group</Button>
@@ -287,7 +287,7 @@ export default function DriveDetail({ params }) {
                       <form onSubmit={onJoin} className="space-y-4">
                         <div>
                           <label htmlFor="invite-code" className="block text-sm font-medium text-gray-700 mb-1">Invitation Code</label>
-                          <input id="invite-code" value={inviteCode} onChange={(e)=>setInviteCode(e.target.value)} placeholder="Enter invite code" className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" />
+                          <input id="invite-code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="Enter invite code" className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none" />
                         </div>
                         <Button type="submit" variant="primary" className="w-full">Request to Join</Button>
                       </form>
@@ -397,7 +397,7 @@ export default function DriveDetail({ params }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Mentors Available
                     </label>
-                    <select 
+                    <select
                       value={selectedMentor}
                       onChange={(e) => setSelectedMentor(e.target.value)}
                       className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none"
@@ -412,7 +412,7 @@ export default function DriveDetail({ params }) {
                   </div>
 
                   <div className="flex gap-2 justify-end">
-                    <button 
+                    <button
                       onClick={() => {
                         setSelectedGroupForMentor(null);
                         setSelectedMentor('');
@@ -421,7 +421,7 @@ export default function DriveDetail({ params }) {
                     >
                       Cancel
                     </button>
-                    <Button 
+                    <Button
                       variant="primary"
                       onClick={handleAssignMentor}
                       disabled={!selectedMentor || allotMentorMutation.isPending}

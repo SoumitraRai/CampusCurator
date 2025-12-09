@@ -2,6 +2,7 @@ const Submission = require('../models/Submission');
 const Group = require('../models/Group');
 const Drive = require('../models/Drive');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 
 /**
  * Submit or update submission (logbook, synopsis, report, ppt, etc.)
@@ -9,6 +10,10 @@ const User = require('../models/User');
 exports.submitFile = async (req, res, next) => {
   try {
     const { groupId, driveId, submissionType, title, description } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({ success: false, message: 'Invalid group ID' });
+    }
 
     // Validate group exists
     const group = await Group.findById(groupId);
@@ -30,17 +35,28 @@ exports.submitFile = async (req, res, next) => {
       });
     }
 
+    // Resolve drive: prefer provided driveId, otherwise derive from group
+    const resolvedDriveId = driveId || group.drive;
+    if (!mongoose.Types.ObjectId.isValid(resolvedDriveId)) {
+      return res.status(400).json({ success: false, message: 'Invalid drive ID' });
+    }
+
+    const drive = await Drive.findById(resolvedDriveId);
+    if (!drive) {
+      return res.status(404).json({ success: false, message: 'Drive not found' });
+    }
+
     // Find or create submission
     let submission = await Submission.findOne({
       group: groupId,
-      drive: driveId,
+      drive: resolvedDriveId,
       submissionType
     });
 
     if (!submission) {
       submission = await Submission.create({
         group: groupId,
-        drive: driveId,
+        drive: resolvedDriveId,
         submissionType,
         title,
         description,

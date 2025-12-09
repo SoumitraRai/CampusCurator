@@ -12,6 +12,10 @@ export default function SynopsisPage() {
   const [selectedGroup, setSelectedGroup] = useState('');
   const [title, setTitle] = useState('');
   const [abstract, setAbstract] = useState('');
+  const [objectives, setObjectives] = useState('');
+  const [methodology, setMethodology] = useState('');
+  const [expectedOutcome, setExpectedOutcome] = useState('');
+  const [technologies, setTechnologies] = useState('');
   const [file, setFile] = useState(null);
 
   const { data: myGroups } = useQuery({
@@ -27,8 +31,8 @@ export default function SynopsisPage() {
     queryKey: ['groupSynopsis', selectedGroup],
     queryFn: async () => {
       if (!selectedGroup) return null;
-      const res = await api.get(`/synopsis?group=${selectedGroup}`);
-      return res.data?.[0];
+      const res = await api.get(`/synopsis/group/${selectedGroup}`);
+      return res.data?.data;
     },
     enabled: !!selectedGroup
   });
@@ -39,7 +43,11 @@ export default function SynopsisPage() {
       formData.append('groupId', selectedGroup);
       formData.append('title', title);
       formData.append('abstract', abstract);
-      if (file) formData.append('file', file);
+      if (objectives) formData.append('objectives', objectives);
+      if (methodology) formData.append('methodology', methodology);
+      if (expectedOutcome) formData.append('expectedOutcome', expectedOutcome);
+      if (technologies) formData.append('technologies', technologies);
+      if (file) formData.append('documents', file);
 
       const res = await api.post('/synopsis', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -49,6 +57,10 @@ export default function SynopsisPage() {
     onSuccess: () => {
       setTitle('');
       setAbstract('');
+      setObjectives('');
+      setMethodology('');
+      setExpectedOutcome('');
+      setTechnologies('');
       setFile(null);
       qc.invalidateQueries({ queryKey: ['groupSynopsis', selectedGroup] });
       alert('Synopsis submitted successfully!');
@@ -64,16 +76,25 @@ export default function SynopsisPage() {
       alert('Please fill all required fields');
       return;
     }
+    if (submissionBlockedReason) {
+      alert(submissionBlockedReason);
+      return;
+    }
     submitMutation.mutate();
   };
 
-  const getStatusColor = (status) => {
-    if (!status) return 'gray';
-    if (status === 'approved') return 'green';
-    if (status === 'rejected') return 'red';
-    if (status === 'under-review') return 'yellow';
-    return 'blue';
-  };
+  const statusLabel = (status) => status?.replace(/_/g, ' ').toUpperCase();
+
+  const selectedGroupDetails = myGroups?.find(g => g._id === selectedGroup);
+  const hasMentor = !!selectedGroupDetails?.assignedMentor;
+  const canSubmitStatus = !groupSynopsis || ['draft', 'changes_requested', 'rejected'].includes(groupSynopsis.status);
+  const submissionBlockedReason = !selectedGroup
+    ? null
+    : !hasMentor
+      ? 'A mentor must be assigned to your group before submitting the synopsis.'
+      : !canSubmitStatus
+        ? 'Your synopsis is already submitted and awaiting review. You can resubmit only after feedback or rejection.'
+        : null;
 
   if (userLoading) return <LoadingSpinner />;
 
@@ -117,6 +138,22 @@ export default function SynopsisPage() {
                         </select>
                       </div>
 
+                      {/* Mentor / drive info */}
+                      {selectedGroupDetails && (
+                        <Alert variant="info">
+                          <p className="text-sm font-semibold text-gray-900">Group mentor</p>
+                          <p className="text-sm text-gray-700">
+                            {selectedGroupDetails.assignedMentor?.name || 'Not assigned yet'}
+                          </p>
+                        </Alert>
+                      )}
+
+                      {submissionBlockedReason && (
+                        <Alert variant="warning">
+                          <p className="text-sm font-medium text-gray-900">{submissionBlockedReason}</p>
+                        </Alert>
+                      )}
+
                       {/* Project Title */}
                       <div>
                         <label htmlFor="title" className="block text-sm font-semibold text-gray-900 mb-2">
@@ -153,6 +190,62 @@ export default function SynopsisPage() {
                         </p>
                       </div>
 
+                      {/* Additional Details */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="objectives" className="block text-sm font-semibold text-gray-900 mb-2">
+                            Objectives
+                          </label>
+                          <textarea
+                            id="objectives"
+                            value={objectives}
+                            onChange={(e) => setObjectives(e.target.value)}
+                            rows="3"
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none resize-none"
+                            placeholder="List the primary objectives"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="methodology" className="block text-sm font-semibold text-gray-900 mb-2">
+                            Methodology
+                          </label>
+                          <textarea
+                            id="methodology"
+                            value={methodology}
+                            onChange={(e) => setMethodology(e.target.value)}
+                            rows="3"
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none resize-none"
+                            placeholder="Explain your approach"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="expectedOutcome" className="block text-sm font-semibold text-gray-900 mb-2">
+                            Expected Outcome
+                          </label>
+                          <textarea
+                            id="expectedOutcome"
+                            value={expectedOutcome}
+                            onChange={(e) => setExpectedOutcome(e.target.value)}
+                            rows="3"
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none resize-none"
+                            placeholder="What do you expect to deliver?"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="technologies" className="block text-sm font-semibold text-gray-900 mb-2">
+                            Technologies
+                          </label>
+                          <textarea
+                            id="technologies"
+                            value={technologies}
+                            onChange={(e) => setTechnologies(e.target.value)}
+                            rows="3"
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-400 outline-none resize-none"
+                            placeholder="Stack, tools, libraries"
+                          />
+                        </div>
+                      </div>
+
                       {/* File Upload */}
                       <div>
                         <label htmlFor="file-input" className="block text-sm font-semibold text-gray-900 mb-2">
@@ -186,7 +279,7 @@ export default function SynopsisPage() {
                       {/* Submit Button */}
                       <Button
                         type="submit"
-                        disabled={submitMutation.isPending}
+                        disabled={submitMutation.isPending || !!submissionBlockedReason}
                         variant="primary"
                         size="lg"
                         className="w-full"
@@ -213,10 +306,11 @@ export default function SynopsisPage() {
                           <Badge variant={
                             groupSynopsis.status === 'approved' ? 'success' :
                             groupSynopsis.status === 'rejected' ? 'danger' :
-                            groupSynopsis.status === 'under-review' ? 'warning' :
+                            groupSynopsis.status === 'under_review' ? 'warning' :
+                            groupSynopsis.status === 'changes_requested' ? 'info' :
                             'info'
                           }>
-                            {groupSynopsis.status?.toUpperCase() || 'NO SUBMISSION'}
+                            {statusLabel(groupSynopsis.status) || 'NO SUBMISSION'}
                           </Badge>
                         </div>
 
@@ -247,6 +341,27 @@ export default function SynopsisPage() {
                           </div>
                         )}
 
+                        {/* Documents */}
+                        {groupSynopsis.documents?.length > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-600 font-medium mb-1">DOCUMENTS</p>
+                            <ul className="space-y-1">
+                              {groupSynopsis.documents.map((doc) => (
+                                <li key={doc.fileUrl}>
+                                  <a
+                                    href={doc.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-orange-600 hover:text-orange-700 text-sm"
+                                  >
+                                    {doc.fileName}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
                         {/* Feedback */}
                         {groupSynopsis.feedback && (
                           <Alert variant="info">
@@ -270,10 +385,17 @@ export default function SynopsisPage() {
                           </Alert>
                         )}
 
-                        {groupSynopsis.status === 'under-review' && (
+                        {groupSynopsis.status === 'under_review' && (
                           <Alert variant="warning">
                             <p className="font-semibold">Under Review</p>
                             <p className="text-sm mt-1">Your synopsis is being reviewed by the mentor.</p>
+                          </Alert>
+                        )}
+
+                        {groupSynopsis.status === 'changes_requested' && (
+                          <Alert variant="info">
+                            <p className="font-semibold">Changes Requested</p>
+                            <p className="text-sm mt-1">Update your synopsis and resubmit when ready.</p>
                           </Alert>
                         )}
                       </div>

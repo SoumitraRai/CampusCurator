@@ -43,9 +43,13 @@ export default function MentorDashboard() {
   if (userLoading || groupsLoading) return <LoadingSpinner />;
 
   // Filter submissions to only show those from mentor's assigned groups
-  const groupIds = assignedGroups?.map(g => g._id) || [];
-  const filteredSubmissions = allSubmissions?.filter(s => groupIds.includes(s.group || s.groupId)) || [];
+  const groupIds = assignedGroups?.map(g => g._id?.toString()) || [];
+  const filteredSubmissions = allSubmissions?.filter(s => {
+    const sg = (s.group && s.group._id) ? s.group._id.toString() : s.group?.toString?.() || s.groupId?.toString?.();
+    return sg && groupIds.includes(sg);
+  }) || [];
   const acceptedSubmissions = filteredSubmissions.filter(s => s.status === 'accepted').length || 0;
+  const submittedCount = filteredSubmissions.filter(s => s.status === 'submitted').length || 0;
   const pendingReviews = pendingSynopses?.length || 0;
 
   return (
@@ -72,8 +76,8 @@ export default function MentorDashboard() {
                 color="yellow"
               />
               <StatCard 
-                label="Accepted Files" 
-                value={acceptedSubmissions} 
+                label="Submitted Files" 
+                value={submittedCount} 
                 color="green"
               />
               <StatCard 
@@ -130,9 +134,6 @@ export default function MentorDashboard() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Link href={`/mentor/reviews?group=${g._id}`}>
-                        <Button variant="outline" size="sm">Review Synopsis</Button>
-                      </Link>
                       <Link href={`/mentor/evaluations?group=${g._id}`}>
                         <Button variant="secondary" size="sm">Enter Marks</Button>
                       </Link>
@@ -196,13 +197,10 @@ export default function MentorDashboard() {
                   >
                     <div className="flex-1">
                       <p className="font-semibold uppercase text-sm text-gray-700">
-                        {s.submissionType === 'logbook' && 'Logbook'}
-                        {s.submissionType === 'report' && 'Report'}
-                        {s.submissionType === 'ppt' && 'Presentation'}
-                        {s.submissionType === 'code' && 'Code'}
+                        {s.submissionType ? s.submissionType.toUpperCase() : 'SUBMISSION'}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Submitted: {new Date(s.submittedAt).toLocaleDateString()}
+                        Submitted: {s.submittedAt ? new Date(s.submittedAt).toLocaleDateString() : '—'}
                       </p>
                       {s.feedback && <p className="text-sm text-gray-600 mt-2 italic">"{s.feedback}"</p>}
                     </div>

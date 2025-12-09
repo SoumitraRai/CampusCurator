@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
   }
 });
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /pdf|doc|docx|ppt|pptx|zip|rar|jpg|jpeg|png|mp4|avi/;
+  const allowedTypes = /pdf|doc|docx|ppt|pptx|zip|rar|jpg|jpeg|png|webp|mp4|avi/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
   if (mimetype && extname) {
