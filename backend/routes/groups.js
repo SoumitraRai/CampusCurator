@@ -10,7 +10,8 @@ const {
   allotMentor,
   autoAllotMentors,
   autoGroupRemainingStudents,
-  getRemainingStudents
+  getRemainingStudents,
+  leaveGroup
 } = require('../controllers/groupController');
 const { protect, authorize } = require('../middleware/auth');
 const router = express.Router();
@@ -41,6 +42,7 @@ router
   .route('/:id')
   .get(protect, getGroup)
   .delete(protect, deleteGroup);
+router.post('/:id/leave', protect, authorize('student'), leaveGroup);
 router
   .route('/:id/members/:memberId')
   .put(protect, authorize('student'), manageMemberRequest)

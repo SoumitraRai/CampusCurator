@@ -18,8 +18,9 @@ exports.createGroup = async (req, res, next) => {
         message: 'Drive is not active or does not exist'
       });
     }
-    // Check if student already in ANY group (across all drives)
+    // Check if student already in ANY group for this drive (not across all drives)
     const existingGroup = await Group.findOne({
+      drive,
       $or: [
         { leader: req.user.id },
         { 'members.student': req.user.id }
@@ -28,7 +29,7 @@ exports.createGroup = async (req, res, next) => {
     if (existingGroup) {
       return res.status(400).json({
         success: false,
-        message: 'You are already part of another drive. Students can only join one drive.'
+        message: 'You are already part of a group in this drive.'
       });
     }
     const invitationCode = uuidv4().substring(0, 8).toUpperCase();
@@ -116,8 +117,9 @@ exports.joinGroup = async (req, res, next) => {
         message: 'Group is locked and cannot accept new members'
       });
     }
-    // Check if student already in ANY group (across all drives)
+    // Check if student already in ANY group for this drive (not across all drives)
     const existingGroup = await Group.findOne({
+      drive: group.drive,
       $or: [
         { leader: req.user.id },
         { 'members.student': req.user.id }
@@ -126,7 +128,7 @@ exports.joinGroup = async (req, res, next) => {
     if (existingGroup) {
       return res.status(400).json({
         success: false,
-        message: 'You are already part of another drive. Students can only join one drive.'
+        message: 'You are already part of a group in this drive.'
       });
     }
     const isMember = group.members.some(
@@ -227,6 +229,70 @@ exports.removeMember = async (req, res, next) => {
     }
     res.status(200).json({
       success: true,
+      data: group
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Allow a student to leave a group they are part of (leader or member)
+exports.leaveGroup = async (req, res, next) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found'
+      });
+    }
+
+    const isLeader = group.leader.toString() === req.user.id.toString();
+    const member = group.members.find(m => m.student.toString() === req.user.id.toString());
+
+    if (!isLeader && !member) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not part of this group'
+      });
+    }
+
+    if (group.assignedMentor) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot leave a group after mentor allotment'
+      });
+    }
+
+    // Leader leaving: either promote another member or delete the group if empty
+    if (isLeader) {
+      if (group.members.length === 0) {
+        await group.deleteOne();
+        return res.status(200).json({
+          success: true,
+          message: 'Group deleted as the leader left and no members remained'
+        });
+      }
+
+      // Promote the first accepted member (or first pending if none accepted)
+      const nextLeader = group.members.find(m => m.status === 'accepted') || group.members[0];
+      group.leader = nextLeader.student;
+      // Remove the promoted member from members list
+      group.members = group.members.filter(m => m.student.toString() !== nextLeader.student.toString());
+      await group.save();
+      return res.status(200).json({
+        success: true,
+        message: 'You left the group. Another member was promoted to leader.',
+        data: group
+      });
+    }
+
+    // Regular member leaving
+    group.members = group.members.filter(m => m.student.toString() !== req.user.id.toString());
+    await group.save();
+    return res.status(200).json({
+      success: true,
+      message: 'You have left the group',
       data: group
     });
   } catch (error) {

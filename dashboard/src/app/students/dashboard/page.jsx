@@ -1,15 +1,15 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useCurrentUser } from '@/lib/useCurrentUser';
 import ProtectedRole from '@/components/ProtectedRole';
-import Link from 'next/link';
-import { Card, CardHeader, CardBody, Badge, StatCard, LoadingSpinner, EmptyState } from '@/components/UI';
+import { Card, CardHeader, CardBody, Badge, StatCard, LoadingSpinner, EmptyState, Alert, Button } from '@/components/UI';
 
 export default function StudentDashboard() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
 
-  const { data: drives, isLoading: drivesLoading } = useQuery({
+  const { data: drives, isLoading: drivesLoading, isError: drivesError } = useQuery({
     queryKey: ['studentDrives'],
     queryFn: async () => {
       const res = await api.get('/drives');
@@ -18,7 +18,7 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  const { data: myGroups, isLoading: groupsLoading } = useQuery({
+  const { data: myGroups, isLoading: groupsLoading, isError: groupsError } = useQuery({
     queryKey: ['myGroups'],
     queryFn: async () => {
       const res = await api.get('/groups');
@@ -27,7 +27,7 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  const { data: mySubmissions } = useQuery({
+  const { data: mySubmissions, isLoading: submissionsLoading, isError: submissionsError } = useQuery({
     queryKey: ['mySubmissions'],
     queryFn: async () => {
       const res = await api.get('/submissions');
@@ -36,7 +36,7 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  const { data: myResults } = useQuery({
+  const { data: myResults, isLoading: resultsLoading, isError: resultsError } = useQuery({
     queryKey: ['myResults'],
     queryFn: async () => {
       const res = await api.get('/results');
@@ -45,6 +45,8 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
+  const firstJoinableDrive = drives?.find(d => d.status === 'active');
+
   if (userLoading) return <LoadingSpinner />;
 
   return (
@@ -52,36 +54,49 @@ export default function StudentDashboard() {
       <div className="w-full bg-gray-50 min-h-screen">
         <div className="w-full px-6 py-8">
           <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            {/* Header */}
             <div className="mb-10">
               <h1 className="text-4xl font-bold text-gray-900">Your Groups & Drives</h1>
               <p className="text-gray-700 mt-2">
                 Manage your project groups and track drive progress
               </p>
-            </div>            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <StatCard 
-                label="My Groups" 
-                value={myGroups?.length || 0} 
-                color="blue"
-              />
-              <StatCard 
-                label="Submissions" 
-                value={mySubmissions?.length || 0} 
-                color="green"
-              />
-              <StatCard 
-                label="Active Drives" 
-                value={drives?.filter(d => d.status === 'active').length || 0} 
-                color="purple"
-              />
-              <StatCard 
-                label="Results" 
-                value={myResults?.length || 0} 
-            color="orange"
-          />
-        </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="mb-10">
+              {(drivesLoading || groupsLoading || submissionsLoading || resultsLoading) && (
+                <div className="flex gap-4 items-center text-gray-600 text-sm">
+                  <LoadingSpinner size="sm" />
+                  <span>Loading your data...</span>
+                </div>
+              )}
+              {(drivesError || groupsError || submissionsError || resultsError) && (
+                <Alert variant="danger" className="mt-4">
+                  Could not load all stats right now. Please refresh in a moment.
+                </Alert>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
+                <StatCard 
+                  label="My Groups" 
+                  value={myGroups?.length || 0} 
+                  color="blue"
+                />
+                <StatCard 
+                  label="Submissions" 
+                  value={mySubmissions?.length || 0} 
+                  color="green"
+                />
+                <StatCard 
+                  label="Active Drives" 
+                  value={drives?.filter(d => d.status === 'active').length || 0} 
+                  color="purple"
+                />
+                <StatCard 
+                  label="Results" 
+                  value={myResults?.length || 0} 
+                  color="orange"
+                />
+              </div>
+            </div>
 
         {/* My Groups Section */}
         <Card className="mb-10">
@@ -92,11 +107,25 @@ export default function StudentDashboard() {
           <CardBody>
             {groupsLoading ? (
               <LoadingSpinner />
+            ) : groupsError ? (
+              <Alert variant="danger">Unable to load your groups. Please retry.</Alert>
             ) : myGroups?.length === 0 ? (
-              <EmptyState 
-                title="No Groups Yet" 
-                message="Join or create a group from an available drive to get started"
-              />
+              <div className="space-y-4">
+                <EmptyState 
+                  title="No Groups Yet" 
+                  message="Join a drive and form a group to get started."
+                />
+                <div className="flex gap-3">
+                  <Link href="/drives" className="flex-1">
+                    <Button variant="primary" className="w-full">Browse Drives</Button>
+                  </Link>
+                  {firstJoinableDrive && (
+                    <Link href={`/drives/${firstJoinableDrive._id}`} className="flex-1">
+                      <Button variant="outline" className="w-full">Go to an Active Drive</Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="grid gap-6">
                 {myGroups.map(g => (
@@ -196,13 +225,17 @@ export default function StudentDashboard() {
         )}
 
         {/* Recent Submissions Section */}
-        {mySubmissions && mySubmissions.length > 0 && (
-          <Card>
-                        <CardHeader>
-              <h2 className="text-2xl font-bold text-gray-900">Recent Submissions</h2>
-              <p className="text-gray-600 mt-1">Your latest checkpoint submissions</p>
-            </CardHeader>
-            <CardBody>
+        <Card>
+          <CardHeader>
+            <h2 className="text-2xl font-bold text-gray-900">Recent Submissions</h2>
+            <p className="text-gray-600 mt-1">Your latest checkpoint submissions</p>
+          </CardHeader>
+          <CardBody>
+            {submissionsLoading ? (
+              <LoadingSpinner />
+            ) : submissionsError ? (
+              <Alert variant="danger">Unable to load submissions right now.</Alert>
+            ) : mySubmissions && mySubmissions.length > 0 ? (
               <div className="grid gap-4">
                 {mySubmissions.slice(0, 5).map(s => (
                   <div 
@@ -226,9 +259,48 @@ export default function StudentDashboard() {
                   </div>
                 ))}
               </div>
-            </CardBody>
-          </Card>
-        )}
+            ) : (
+              <EmptyState 
+                title="No submissions yet" 
+                message="Upload your first checkpoint to see it here."
+              />
+            )}
+          </CardBody>
+        </Card>
+
+        <Card className="mt-8">
+          <CardHeader>
+            <h2 className="text-2xl font-bold text-gray-900">Results</h2>
+            <p className="text-gray-600 mt-1">Latest published results</p>
+          </CardHeader>
+          <CardBody>
+            {resultsLoading ? (
+              <LoadingSpinner />
+            ) : resultsError ? (
+              <Alert variant="danger">Unable to load results right now.</Alert>
+            ) : myResults && myResults.length > 0 ? (
+              <div className="grid gap-4">
+                {myResults.slice(0, 3).map(r => (
+                  <div key={r._id} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between hover:bg-gray-50">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900">{r.groupName}</p>
+                      <p className="text-sm text-gray-600">{r.driveName}</p>
+                      <p className="text-xs text-gray-500 mt-1">Final Marks: {r.final_marks ?? 'TBA'}</p>
+                    </div>
+                    <Badge variant={r.grade ? 'success' : 'info'}>
+                      {r.grade || 'Pending'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState 
+                title="No results yet" 
+                message="When results are published you'll see them here."
+              />
+            )}
+          </CardBody>
+        </Card>
           </div>
         </div>
       </div>

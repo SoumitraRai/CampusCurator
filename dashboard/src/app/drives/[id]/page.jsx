@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useState, use } from 'react';
 import Link from 'next/link';
-import { Card, CardBody, Button, LoadingSpinner } from '@/components/UI';
+import { Card, CardBody, Button, LoadingSpinner, Alert } from '@/components/UI';
 import { useCurrentUser } from '@/lib/useCurrentUser';
 
 async function fetchDrive(id) {
@@ -52,6 +52,8 @@ export default function DriveDetail({ params }) {
   const [inviteCode, setInviteCode] = useState('');
   const [selectedGroupForMentor, setSelectedGroupForMentor] = useState(null);
   const [selectedMentor, setSelectedMentor] = useState('');
+  const [leaveError, setLeaveError] = useState('');
+  const [leaveSuccess, setLeaveSuccess] = useState('');
   const router = useRouter();
 
   const createGroupMutation = useMutation({
@@ -68,6 +70,23 @@ export default function DriveDetail({ params }) {
       return res;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drive', id] })
+  });
+
+  const leaveGroupMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/groups/${myGroups?.[0]?._id}/leave`);
+      return res.data || res;
+    },
+    onSuccess: () => {
+      setLeaveError('');
+      setLeaveSuccess('You have left your group.');
+      qc.invalidateQueries({ queryKey: ['drive', id] });
+      qc.invalidateQueries({ queryKey: ['myGroups'] });
+    },
+    onError: (err) => {
+      setLeaveSuccess('');
+      setLeaveError(err.response?.data?.message || 'Unable to leave the group now.');
+    }
   });
 
   const allotMentorMutation = useMutation({
@@ -99,11 +118,12 @@ export default function DriveDetail({ params }) {
 
   const drive = data.data || data.drive || data;
   const isAlreadyInGroup = myGroups?.some(g => (g.drive?._id || g.drive) === id);
+  const myGroupInDrive = myGroups?.find(g => (g.drive?._id || g.drive) === id);
 
   const onCreateGroup = async (e) => {
     e.preventDefault();
     try {
-      await createGroupMutation.mutateAsync({ driveId: id, name, maxMembers: drive.maxGroupSize });
+      await createGroupMutation.mutateAsync({ drive: id, name, maxMembers: drive.maxGroupSize });
       setName('');
       router.push('/drives');
     } catch (err) {
@@ -260,8 +280,28 @@ export default function DriveDetail({ params }) {
                   </Card>
                 </div>
               ) : (
-                <div className="mb-8 p-6 bg-green-50 border-l-4 border-green-500 rounded-lg">
-                  <p className="text-green-800 font-medium">You are already part of a group in this drive. You can view your group details in the "My Groups" section.</p>
+                <div className="mb-8 p-6 bg-green-50 border-l-4 border-green-500 rounded-lg space-y-3">
+                  <p className="text-green-800 font-medium">You are already part of a group in this drive.</p>
+                  {leaveError && <Alert variant="danger">{leaveError}</Alert>}
+                  {leaveSuccess && <Alert variant="success">{leaveSuccess}</Alert>}
+                  <div className="flex flex-wrap gap-3">
+                    <Link href={`/groups/${myGroupInDrive?._id || ''}`} className="inline-flex">
+                      <Button variant="outline">View Group</Button>
+                    </Link>
+                    <Button
+                      variant="primary"
+                      className="bg-red-600 hover:bg-red-700 border-red-700"
+                      onClick={() => {
+                        if (confirm('Leave this group? You cannot leave after mentor allotment.')) {
+                          leaveGroupMutation.mutate();
+                        }
+                      }}
+                      disabled={leaveGroupMutation.isPending}
+                    >
+                      {leaveGroupMutation.isPending ? 'Leaving...' : 'Leave Group'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-600">Leaving is blocked after mentor allotment.</p>
                 </div>
               )}
 
