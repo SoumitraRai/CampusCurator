@@ -132,14 +132,14 @@ export default function Results() {
             </div>
 
             {!mergedResults?.length ? (
-              <EmptyState 
-                title="No Results Yet" 
+              <EmptyState
+                title="No Results Yet"
                 message="Your results will appear here once all evaluations are completed and published"
               />
             ) : (
               <div className="grid gap-8">
                 {mergedResults.map(r => (
-                  <Card key={r._id} className="border-l-4 hover:shadow-lg transition-shadow" style={{borderLeftColor: getGradeColor(r.grade) === 'green' ? '#10b981' : getGradeColor(r.grade) === 'blue' ? '#3b82f6' : getGradeColor(r.grade) === 'yellow' ? '#f59e0b' : '#ef4444'}}>
+                  <Card key={r._id} className="border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: getGradeColor(r.grade) === 'green' ? '#10b981' : getGradeColor(r.grade) === 'blue' ? '#3b82f6' : getGradeColor(r.grade) === 'yellow' ? '#f59e0b' : '#ef4444' }}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div>
@@ -163,35 +163,35 @@ export default function Results() {
                               {r.logbook_marks || 0}
                             </p>
                           </div>
-                          
+
                           <div className="bg-white p-4 rounded-lg border-2 border-purple-200 hover:shadow-md transition">
                             <p className="text-xs text-gray-600 font-medium">Synopsis</p>
                             <p className={`text-2xl font-bold mt-2 ${getMarksColor(r.synopsis_marks)}`}>
                               {r.synopsis_marks || 0}
                             </p>
                           </div>
-                          
+
                           <div className="bg-white p-4 rounded-lg border-2 border-green-200 hover:shadow-md transition">
                             <p className="text-xs text-gray-600 font-medium">Report</p>
                             <p className={`text-2xl font-bold mt-2 ${getMarksColor(r.report_marks)}`}>
                               {r.report_marks || 0}
                             </p>
                           </div>
-                          
+
                           <div className="bg-white p-4 rounded-lg border-2 border-yellow-200 hover:shadow-md transition">
                             <p className="text-xs text-gray-600 font-medium">PPT</p>
                             <p className={`text-2xl font-bold mt-2 ${getMarksColor(r.ppt_marks)}`}>
                               {r.ppt_marks || 0}
                             </p>
                           </div>
-                          
+
                           <div className="bg-white p-4 rounded-lg border-2 border-orange-200 hover:shadow-md transition">
                             <p className="text-xs text-gray-600 font-medium">Mid-Sem</p>
                             <p className={`text-2xl font-bold mt-2 ${getMarksColor(r.midsem_marks)}`}>
                               {r.midsem_marks || 0}
                             </p>
                           </div>
-                          
+
                           <div className="bg-white p-4 rounded-lg border-2 border-red-200 hover:shadow-md transition">
                             <p className="text-xs text-gray-600 font-medium">End-Sem</p>
                             <p className={`text-2xl font-bold mt-2 ${getMarksColor(r.endsem_marks)}`}>
@@ -211,12 +211,11 @@ export default function Results() {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-600 mb-2">Letter Grade</p>
-                            <p className={`text-5xl font-bold ${
-                              r.grade === 'A+' || r.grade === 'A' ? 'text-green-600' :
-                              r.grade === 'B+' || r.grade === 'B' ? 'text-blue-600' :
-                              r.grade === 'C+' || r.grade === 'C' ? 'text-yellow-600' :
-                              'text-red-600'
-                            }`}>
+                            <p className={`text-5xl font-bold ${r.grade === 'A+' || r.grade === 'A' ? 'text-green-600' :
+                                r.grade === 'B+' || r.grade === 'B' ? 'text-blue-600' :
+                                  r.grade === 'C+' || r.grade === 'C' ? 'text-yellow-600' :
+                                    'text-red-600'
+                              }`}>
                               {r.grade || 'N/A'}
                             </p>
                           </div>

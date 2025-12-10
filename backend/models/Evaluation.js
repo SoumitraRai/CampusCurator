@@ -83,7 +83,7 @@ const evaluationSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
-evaluationSchema.pre('save', function(next) {
+evaluationSchema.pre('save', function (next) {
   if (this.totalMarks && this.maxMarks) {
     this.percentage = (this.totalMarks / this.maxMarks) * 100;
   }

@@ -162,7 +162,7 @@ export default function Evaluations() {
                     <CardBody>
                       <div className="space-y-3">
                         {pendingList.map(s => (
-                          <div 
+                          <div
                             key={s._id}
                             onClick={() => {
                               setSelectedSubmissionId(s._id);
@@ -171,11 +171,10 @@ export default function Evaluations() {
                               setMaxScore('100');
                               setFeedback('');
                             }}
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                              selectedSubmissionId === s._id
+                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedSubmissionId === s._id
                                 ? 'border-orange-500 bg-orange-50'
                                 : 'border-gray-200 hover:border-gray-300'
-                            }`}
+                              }`}
                           >
                             <p className="font-semibold text-sm uppercase text-gray-700">
                               {s.submissionType ? s.submissionType.toUpperCase() : 'SUBMISSION'}
@@ -203,7 +202,7 @@ export default function Evaluations() {
                     <form onSubmit={handleSubmit} className="space-y-6">
                       {/* Selected submission details */}
                       {selectedSubmission ? (
-                            <div className="p-4 rounded-lg border bg-gray-50">
+                        <div className="p-4 rounded-lg border bg-gray-50">
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="secondary">{selectedSubmission.submissionType?.toUpperCase() || 'SUBMISSION'}</Badge>
                             <Badge variant="info">{selectedSubmission.group?.name || 'Group'}</Badge>
